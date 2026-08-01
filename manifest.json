@@ -1,0 +1,9 @@
+{
+	"id": "simple-tasks",
+	"name": "Simple Tasks",
+	"version": "0.1.0",
+	"minAppVersion": "1.10.0",
+	"description": "Task management on plain markdown checkboxes: completion heatmap, hover actions, outline hierarchy and tag grouping.",
+	"author": "Alex Ojeda",
+	"isDesktopOnly": false
+}

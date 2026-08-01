@@ -1,0 +1,4 @@
+# pnpm 11 reads project settings from here, not from the "pnpm" field in package.json.
+# esbuild's install script fetches its platform binary, so it has to be allowed.
+allowBuilds:
+  esbuild: true
