@@ -11,7 +11,9 @@
 		"lint": "eslint .",
 		"test": "node --test \"src/**/*.test.ts\"",
 		"seed": "node scripts/seed-vault.mjs",
-		"verify": "node scripts/verify-vault.ts"
+		"verify": "node scripts/verify-vault.ts",
+		"install:vault": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production deploy",
+		"dev:vault": "node esbuild.config.mjs deploy"
 	},
 	"keywords": [
 		"obsidian",

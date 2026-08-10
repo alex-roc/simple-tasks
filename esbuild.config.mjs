@@ -24,21 +24,36 @@ const prod = process.argv[2] === 'production';
  */
 
 /*
- * Deploying to a second vault: point OBSIDIAN_DEPLOY_TO at a plugin folder and
- * every successful build copies the three release artifacts there. See the
- * "Testing in your own vault" section of the README for the exact invocation.
+ * Installing into a vault — `pnpm install:vault`, and `pnpm dev:vault` to iterate.
  *
- * This exists because the test vault is reached through a symlink to this repo,
- * and that is a bad idea for a vault inside iCloud or any other sync service: the
- * repo carries ~139 MB of node_modules and a .git directory, and putting those
- * inside a synced folder invites the client to upload all of it. Copying only the
- * three files the vault actually needs keeps it clean.
+ * Only ever when explicitly asked for, via the `deploy` argument. A plain
+ * `pnpm build` must never write into somebody's vault as a side effect of a
+ * configuration file being present.
  *
- * The `.hotreload` marker is written alongside them, because Hot Reload only
- * watches plugin folders carrying it (or a `.git`), and a copied folder has
- * neither.
+ * The destination is `OBSIDIAN_DEPLOY_TO`, from `.env.local` (git-ignored, see
+ * `.env.local.example`) or from the environment. A vault path is personal and
+ * long, and typing it on every invocation is how a good workflow gets abandoned.
+ * `loadEnvFile` is built into Node — no dependency.
+ *
+ * Three files are copied rather than symlinked, because a symlink would put this
+ * repo's node_modules and .git inside a vault that iCloud, Dropbox or Syncthing
+ * is watching. The `.hotreload` marker goes with them so the Hot Reload plugin
+ * picks the folder up — it only watches plugin folders carrying it or a `.git`.
  */
-const deployTo = process.env.OBSIDIAN_DEPLOY_TO;
+const deploy = process.argv.includes('deploy');
+if (deploy && existsSync('.env.local')) process.loadEnvFile('.env.local');
+// An empty value counts as absent: `OBSIDIAN_DEPLOY_TO=` in a shell would
+// otherwise reach `mkdir('')` and fail with something unreadable.
+const configured = process.env.OBSIDIAN_DEPLOY_TO?.trim();
+const deployTo = deploy && configured ? configured : undefined;
+
+if (deploy && deployTo === undefined) {
+	console.error(
+		'Nothing to deploy to: set OBSIDIAN_DEPLOY_TO in .env.local (copy .env.local.example) ' +
+			'or pass it in the environment.'
+	);
+	process.exit(1);
+}
 
 const deployPlugin = {
 	name: 'deploy-to-vault',

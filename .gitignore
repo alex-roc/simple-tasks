@@ -25,3 +25,6 @@ data.json
 # the author rather than for a reader of the repository. The public, English
 # documentation lives in docs/ and is committed.
 dev-docs/
+
+# Local machine configuration: vault paths, never shared.
+.env.local

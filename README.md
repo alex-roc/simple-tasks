@@ -147,22 +147,31 @@ extension. `pnpm seed` populates a scratch vault with realistic notes and
 `pnpm verify` runs the real parser and serializer over every list line of it,
 failing if one stops round-tripping byte-for-byte.
 
-### Testing in your own vault
+### Installing a build into your own vault
 
-BRAT installs from a published release, so iterating through it means a tag and a
-release per change. For development, build straight into the vault instead:
+BRAT installs from a published release, which means a tag and a release for every
+change you want to try. To install a local build straight into a vault instead,
+copy `.env.local.example` to `.env.local` and point it at the plugin folder:
 
 ```bash
-OBSIDIAN_DEPLOY_TO="$HOME/path/to/YourVault/.obsidian/plugins/simple-tasks" pnpm dev
+OBSIDIAN_DEPLOY_TO=/Users/you/…/YourVault/.obsidian/plugins/simple-tasks
 ```
 
-Every successful build copies `main.js`, `manifest.json` and `styles.css` there,
-plus the `.hotreload` marker, so the [Hot Reload](https://github.com/pjeby/hot-reload)
-plugin reloads it inside Obsidian. Save, and the change is live.
+Then:
 
-Copying rather than symlinking is deliberate: this repo carries ~139 MB of
-`node_modules` and a `.git` directory, and a symlink would place both inside a
-vault that iCloud, Dropbox or Syncthing is watching.
+```bash
+pnpm install:vault   # build and install into that vault, once
+pnpm dev:vault       # the same, but rebuilding and reinstalling on every save
+```
+
+Both copy `main.js`, `manifest.json` and `styles.css`, plus the `.hotreload`
+marker that lets [Hot Reload](https://github.com/pjeby/hot-reload) reload the
+plugin without restarting Obsidian.
+
+`pnpm build` never writes to a vault — installing only ever happens when you ask
+for it by name. And these commands copy rather than symlink on purpose: a symlink
+would put this repo's `node_modules` and `.git` inside a vault that iCloud,
+Dropbox or Syncthing is watching.
 
 Conventions for the codebase are in [`AGENTS.md`](AGENTS.md).
 
