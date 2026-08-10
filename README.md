@@ -147,6 +147,23 @@ extension. `pnpm seed` populates a scratch vault with realistic notes and
 `pnpm verify` runs the real parser and serializer over every list line of it,
 failing if one stops round-tripping byte-for-byte.
 
+### Testing in your own vault
+
+BRAT installs from a published release, so iterating through it means a tag and a
+release per change. For development, build straight into the vault instead:
+
+```bash
+OBSIDIAN_DEPLOY_TO="$HOME/path/to/YourVault/.obsidian/plugins/simple-tasks" pnpm dev
+```
+
+Every successful build copies `main.js`, `manifest.json` and `styles.css` there,
+plus the `.hotreload` marker, so the [Hot Reload](https://github.com/pjeby/hot-reload)
+plugin reloads it inside Obsidian. Save, and the change is live.
+
+Copying rather than symlinking is deliberate: this repo carries ~139 MB of
+`node_modules` and a `.git` directory, and a symlink would place both inside a
+vault that iCloud, Dropbox or Syncthing is watching.
+
 Conventions for the codebase are in [`AGENTS.md`](AGENTS.md).
 
 ## License
