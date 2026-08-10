@@ -4,6 +4,7 @@
 	"version": "0.1.0",
 	"minAppVersion": "1.10.0",
 	"description": "Task management on plain markdown checkboxes: completion heatmap, hover actions, outline hierarchy and tag grouping.",
-	"author": "Alex Ojeda",
+	"author": "Alex Ojeda Copa",
+	"authorUrl": "https://github.com/alex-roc",
 	"isDesktopOnly": false
 }

@@ -2,5 +2,1277 @@
  * Simple Tasks styles.
  *
  * Rule for this file: only Obsidian CSS variables, never literal colors, so the
- * plugin adapts to any theme in both light and dark mode.
+ * plugin adapts to any theme in both light and dark mode. The heatmap shades are
+ * derived from a single accent with color-mix(), which is why there is not one
+ * hex value below.
  */
+
+/* @settings
+
+name: Simple Tasks
+id: simple-tasks
+settings:
+    -
+        id: simple-tasks-heatmap
+        title: Completion heatmap
+        type: heading
+        level: 1
+        collapsed: true
+    -
+        id: st-heatmap-color
+        title: Heatmap color
+        description: Base color of the filled days. Every shade is mixed from it.
+        type: variable-select
+        default: var(--color-accent)
+        options:
+            -
+                label: Accent
+                value: var(--color-accent)
+            -
+                label: Green
+                value: var(--color-green)
+            -
+                label: Blue
+                value: var(--color-blue)
+            -
+                label: Purple
+                value: var(--color-purple)
+            -
+                label: Orange
+                value: var(--color-orange)
+            -
+                label: Red
+                value: var(--color-red)
+            -
+                label: Cyan
+                value: var(--color-cyan)
+            -
+                label: Pink
+                value: var(--color-pink)
+    -
+        id: st-heatmap-cell-size
+        title: Cell size
+        description: Side of one day, in pixels.
+        type: variable-number-slider
+        default: 12
+        min: 8
+        max: 24
+        step: 1
+        format: px
+    -
+        id: st-heatmap-cell-gap
+        title: Cell gap
+        description: Space between days, in pixels.
+        type: variable-number-slider
+        default: 3
+        min: 0
+        max: 8
+        step: 1
+        format: px
+    -
+        id: st-heatmap-density
+        title: Density
+        description: Completions a day needs to reach the darkest shade.
+        type: variable-number-slider
+        default: 8
+        min: 2
+        max: 40
+        step: 1
+    -
+        id: st-heatmap-radius
+        title: Cell roundness
+        description: Corner radius of one day, in pixels.
+        type: variable-number-slider
+        default: 2
+        min: 0
+        max: 12
+        step: 1
+        format: px
+    -
+        id: simple-tasks-burst
+        title: Completion burst
+        type: heading
+        level: 1
+        collapsed: true
+    -
+        id: st-burst-color
+        title: Burst color
+        description: Color of the particles thrown when a task is completed.
+        type: variable-select
+        default: var(--color-accent)
+        options:
+            -
+                label: Accent
+                value: var(--color-accent)
+            -
+                label: Green
+                value: var(--color-green)
+            -
+                label: Yellow
+                value: var(--color-yellow)
+            -
+                label: Orange
+                value: var(--color-orange)
+            -
+                label: Pink
+                value: var(--color-pink)
+    -
+        id: st-burst-distance
+        title: Burst reach
+        description: How far the particles travel, in pixels.
+        type: variable-number-slider
+        default: 48
+        min: 16
+        max: 120
+        step: 4
+        format: px
+    -
+        id: st-burst-size
+        title: Particle size
+        description: Diameter of one particle, in pixels.
+        type: variable-number-slider
+        default: 6
+        min: 2
+        max: 14
+        step: 1
+        format: px
+
+*/
+
+/*
+ * Declared on `body` because that is where the Style Settings plugin writes its
+ * overrides; a value declared further down would shadow the user's choice.
+ */
+body {
+	--st-heatmap-color: var(--color-accent);
+	--st-heatmap-cell-size: 12px;
+	--st-heatmap-cell-gap: 3px;
+	--st-heatmap-density: 8;
+	--st-heatmap-radius: 2px;
+	--st-burst-color: var(--color-accent);
+	--st-burst-distance: 48px;
+	--st-burst-size: 6px;
+}
+
+/*
+ * The touch-target floor, as a variable so every control that needs it reads the
+ * same number and desktop pays nothing (`0px` makes each `min-height` a no-op).
+ *
+ * Two signals feed it, because neither alone is enough. `body.is-mobile` is what
+ * Obsidian itself sets on every phone and tablet — and what `dev:mobile on` sets,
+ * which is the only way any of this can be verified without a device. `pointer:
+ * coarse` catches a desktop touchscreen, and is **not** emulated: a rule written
+ * against it alone is a rule nobody has ever seen run.
+ *
+ * The controls Obsidian already sizes for us are left alone: on mobile it raises
+ * `--input-height` to 44px by itself, which is why the popover buttons, the
+ * agenda toolbar and its dropdown measure 44 without a rule here.
+ */
+.simple-tasks-agenda,
+.simple-tasks-bases {
+	--st-touch-target: 0px;
+}
+
+@media (pointer: coarse) {
+	.simple-tasks-agenda,
+	.simple-tasks-bases {
+		--st-touch-target: 44px;
+	}
+}
+
+body.is-mobile .simple-tasks-agenda,
+body.is-mobile .simple-tasks-bases {
+	--st-touch-target: 44px;
+}
+
+/* Single-character input for a status symbol, in the settings tab. */
+.simple-tasks-symbol-input {
+	width: var(--size-4-16);
+	text-align: center;
+	font-family: var(--font-monospace);
+}
+
+/* ------------------------------------------------------------------ *
+ * Heatmap view
+ * ------------------------------------------------------------------ */
+
+.simple-tasks-heatmap {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	/* Without this the default `stretch` spreads the wrapped lines over the whole
+	   pane height and leaves a hole between the grid and the stats. */
+	align-content: flex-start;
+	gap: var(--size-4-4);
+	padding: var(--size-4-3);
+}
+
+.simple-tasks-heatmap-grid {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+/*
+ * Only the calendar scrolls; the legend stays put. `align-items: start` is what
+ * makes the rows inside size to their content instead of being stretched to the
+ * pane width — without it the sticky weekday gutter has nothing to stick across
+ * and slides out of view after the first screenful.
+ */
+.simple-tasks-heatmap-scroll {
+	display: flex;
+	flex-direction: column;
+	align-items: start;
+	gap: var(--size-2-2);
+	min-width: 0;
+	overflow-x: auto;
+}
+
+.simple-tasks-heatmap-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/* Width of the weekday gutter, so the month labels line up with the columns. */
+.simple-tasks-heatmap-months {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: var(--st-heatmap-cell-size);
+	gap: var(--st-heatmap-cell-gap);
+	margin-inline-start: calc(var(--size-4-6) + var(--st-heatmap-cell-gap));
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.2;
+}
+
+.simple-tasks-heatmap-month {
+	white-space: nowrap;
+	overflow: visible;
+}
+
+.simple-tasks-heatmap-body {
+	display: flex;
+	gap: var(--st-heatmap-cell-gap);
+}
+
+/* Sticky so the weekday names survive scrolling a year sideways. */
+.simple-tasks-heatmap-weekdays {
+	position: sticky;
+	inset-inline-start: 0;
+	z-index: 1;
+	display: grid;
+	grid-template-rows: repeat(7, var(--st-heatmap-cell-size));
+	gap: var(--st-heatmap-cell-gap);
+	width: var(--size-4-6);
+	background-color: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-heatmap-weekday {
+	display: flex;
+	align-items: center;
+	line-height: 1;
+}
+
+.simple-tasks-heatmap-weeks {
+	display: flex;
+	gap: var(--st-heatmap-cell-gap);
+}
+
+.simple-tasks-heatmap-week {
+	display: grid;
+	grid-template-rows: repeat(7, var(--st-heatmap-cell-size));
+	gap: var(--st-heatmap-cell-gap);
+}
+
+.simple-tasks-heatmap-filler {
+	width: var(--st-heatmap-cell-size);
+	height: var(--st-heatmap-cell-size);
+}
+
+.simple-tasks-heatmap-cell {
+	all: unset;
+	box-sizing: border-box;
+	display: block;
+	width: var(--st-heatmap-cell-size);
+	height: var(--st-heatmap-cell-size);
+	border-radius: var(--st-heatmap-radius);
+	background-color: var(--background-modifier-border);
+	cursor: pointer;
+}
+
+/*
+ * Four shades mixed from one accent. Mixing against the secondary background
+ * rather than transparency keeps the low levels legible on both light and dark
+ * themes, where a 20% alpha would all but vanish.
+ */
+.simple-tasks-heatmap-cell[data-level='1'] {
+	background-color: color-mix(in srgb, var(--st-heatmap-color) 25%, var(--background-secondary));
+}
+
+.simple-tasks-heatmap-cell[data-level='2'] {
+	background-color: color-mix(in srgb, var(--st-heatmap-color) 50%, var(--background-secondary));
+}
+
+.simple-tasks-heatmap-cell[data-level='3'] {
+	background-color: color-mix(in srgb, var(--st-heatmap-color) 75%, var(--background-secondary));
+}
+
+.simple-tasks-heatmap-cell[data-level='4'] {
+	background-color: var(--st-heatmap-color);
+}
+
+.simple-tasks-heatmap-cell:hover {
+	box-shadow: 0 0 0 1px var(--background-modifier-border-hover);
+}
+
+.simple-tasks-heatmap-cell:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.simple-tasks-heatmap-legend {
+	display: flex;
+	align-items: center;
+	gap: var(--st-heatmap-cell-gap);
+	margin-inline-start: calc(var(--size-4-6) + var(--st-heatmap-cell-gap));
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-heatmap-legend .simple-tasks-heatmap-cell {
+	cursor: default;
+}
+
+.simple-tasks-heatmap-legend-text {
+	margin-inline: var(--size-2-1);
+}
+
+/* ------------------------------------------------------------------ *
+ * Stats panel
+ * ------------------------------------------------------------------ */
+
+.simple-tasks-stats {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	flex: 1 1 var(--size-4-18);
+	min-width: var(--size-4-18);
+}
+
+.simple-tasks-stats-level {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+}
+
+.simple-tasks-stats-level-name {
+	font-weight: var(--font-semibold);
+	font-size: var(--font-ui-medium);
+}
+
+.simple-tasks-stats-level-xp {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-stats-bar {
+	height: var(--size-2-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.simple-tasks-stats-bar-fill {
+	height: 100%;
+	width: var(--st-progress, 0%);
+	border-radius: var(--radius-s);
+	background-color: var(--st-heatmap-color);
+}
+
+.simple-tasks-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(var(--size-4-16), 1fr));
+	gap: var(--size-2-3);
+}
+
+.simple-tasks-stats-tile {
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.simple-tasks-stats-value {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	line-height: 1.2;
+}
+
+.simple-tasks-stats-label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-stats-footer {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+
+.simple-tasks-stats-note {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-stats-subhead {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.simple-tasks-stats-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-2);
+}
+
+.simple-tasks-stats-tag {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--size-2-1);
+	padding: var(--size-2-1) var(--size-2-3);
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-hover);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-stats-tag-name {
+	color: var(--text-accent);
+}
+
+.simple-tasks-stats-tag-count {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ *
+ * Suggest modals
+ * ------------------------------------------------------------------ */
+
+.simple-tasks-suggestion-hint {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* ------------------------------------------------------------------ *
+ * Task popover
+ *
+ * One component, two hosts: a floating layer anchored to a row in the
+ * plugin's views, and the CodeMirror hover tooltip in the editor. Only the
+ * positioning differs, which is why only `.simple-tasks-popover-layer`
+ * carries it.
+ * ------------------------------------------------------------------ */
+
+.simple-tasks-popover {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+	min-width: var(--size-4-18);
+	max-width: 22em;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-small);
+}
+
+.simple-tasks-popover-layer {
+	position: fixed;
+	top: var(--st-popover-top, 0);
+	left: var(--st-popover-left, 0);
+	z-index: var(--layer-popover);
+}
+
+/* Escape on a popover mounted in somebody else's element hides it here, since
+   removing the element is not ours to do. */
+.simple-tasks-popover-closed {
+	display: none;
+}
+
+/*
+ * The CodeMirror hover tooltip. The wrapper CodeMirror creates carries a light
+ * background from its base theme, so it is neutralized here and the popover
+ * inside keeps its own themed surface — otherwise the editor popover is a white
+ * card in a dark vault. The class is put on the wrapper from `editor-hover.ts`,
+ * since a parent selector is not available.
+ */
+.cm-tooltip.simple-tasks-popover-host {
+	border: none;
+	background-color: transparent;
+	box-shadow: none;
+	padding: 0;
+}
+
+.simple-tasks-popover-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+/*
+ * The mobile-only button at the end of the task line the cursor is on.
+ *
+ * Everything here exists to keep it from disturbing the text it sits next to.
+ * The box is sized in `em` and `vertical-align: middle`, so the line never grows
+ * taller than it already was; the finger-sized target is an absolutely
+ * positioned overlay (see `::before`) rather than a bigger button, for the same
+ * reason. `--st-touch-target` is resolved on the editor line rather than on one
+ * of our views, so the floor is declared here too.
+ */
+.simple-tasks-line-actions {
+	all: unset;
+	box-sizing: border-box;
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	vertical-align: middle;
+	width: 1.4em;
+	height: 1.4em;
+	/* The negative block margins are what keep the line box exactly as tall as it
+	   was: an inline box of 1.4em is taller than the strut, and without them the
+	   line — and everything under it — moved down by a pixel the moment the cursor
+	   arrived. Measured: 26.39px before, 27.38px after, 26.39px with this. */
+	margin-block: -0.3em;
+	margin-inline-start: var(--size-2-2);
+	border-radius: var(--radius-s);
+	color: var(--text-faint);
+	background-color: var(--background-modifier-form-field);
+	cursor: pointer;
+}
+
+.simple-tasks-line-actions .svg-icon {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+.simple-tasks-line-actions:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.simple-tasks-line-actions::before {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 44px;
+	height: 44px;
+	transform: translate(-50%, -50%);
+}
+
+.simple-tasks-popover-header {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+
+.simple-tasks-popover-title {
+	font-weight: var(--font-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.simple-tasks-popover-subtitle {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	word-break: break-all;
+}
+
+.simple-tasks-popover-row {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-2-2);
+}
+
+.simple-tasks-popover-row-label {
+	flex: 0 0 var(--size-4-12);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-popover-row-items {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-1);
+	min-width: 0;
+}
+
+.simple-tasks-popover-value {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+.simple-tasks-popover-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--size-2-1);
+	padding-top: var(--size-2-1);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.simple-tasks-popover-button {
+	all: unset;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-2-1);
+	/* 44px is the mobile touch-target floor; --input-height is 30px on desktop
+	   and grows on mobile, which is exactly the behaviour we want here. */
+	min-width: var(--input-height);
+	min-height: var(--input-height);
+	padding: 0 var(--size-2-2);
+	border-radius: var(--radius-s);
+	color: var(--text-normal);
+	background-color: var(--background-modifier-form-field);
+	cursor: pointer;
+	line-height: 1;
+}
+
+.simple-tasks-popover-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.simple-tasks-popover-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.simple-tasks-popover-button[aria-pressed='true'] {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.simple-tasks-popover-button .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+/* ------------------------------------------------------------------ *
+ * Agenda view
+ * ------------------------------------------------------------------ */
+
+.simple-tasks-agenda {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	padding: var(--size-4-3);
+}
+
+.simple-tasks-agenda-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+/*
+ * The toolbar wraps, but a *group* that cannot shrink pushes past the edge of the
+ * panel instead of wrapping — measured in a 190 px sidebar, where the agenda
+ * overflowed horizontally by 21 px because the five nav controls could neither
+ * wrap nor narrow. `min-width: 0` lets the group shrink, `flex-wrap` lets it
+ * break, and the icon buttons keep their size because of their own `min-width`.
+ */
+.simple-tasks-agenda-nav,
+.simple-tasks-agenda-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-1);
+	min-width: 0;
+}
+
+.simple-tasks-agenda-icon {
+	all: unset;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: var(--input-height);
+	min-height: var(--input-height);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.simple-tasks-agenda-icon:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.simple-tasks-agenda-icon:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.simple-tasks-agenda-icon[aria-pressed='true'] {
+	background-color: var(--background-modifier-active-hover);
+	color: var(--text-accent);
+}
+
+.simple-tasks-agenda-date {
+	all: unset;
+	box-sizing: border-box;
+	padding: 0 var(--size-2-2);
+	min-height: var(--input-height);
+	display: inline-flex;
+	align-items: center;
+	min-width: 0;
+	border-radius: var(--radius-s);
+	font-weight: var(--font-semibold);
+	cursor: pointer;
+}
+
+.simple-tasks-agenda-date-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.simple-tasks-agenda-date:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.simple-tasks-agenda-date:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.simple-tasks-agenda-summary {
+	flex: 1 1 100%;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-agenda-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.simple-tasks-agenda-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.simple-tasks-agenda-group-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--size-2-2);
+	padding-bottom: var(--size-2-1);
+	border-bottom: 1px solid var(--background-modifier-border);
+	margin-bottom: var(--size-2-2);
+}
+
+.simple-tasks-agenda-group-name {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	overflow-wrap: anywhere;
+}
+
+/*
+ * Grouped by note the title is a real `<button>` that opens it. `all: unset`
+ * strips the browser's chrome so it still reads as the section title, and the
+ * affordances are added back deliberately — only here, so a tag or a status
+ * title never looks pressable when it is not.
+ */
+button.simple-tasks-agenda-group-name {
+	all: unset;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	overflow-wrap: anywhere;
+	cursor: pointer;
+	border-radius: var(--radius-s);
+	/* The only pressable group title, so the only one that needs a finger. */
+	display: flex;
+	align-items: center;
+	min-height: var(--st-touch-target, 0px);
+}
+
+button.simple-tasks-agenda-group-name:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+button.simple-tasks-agenda-group-name:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.simple-tasks-agenda-group-count {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+.simple-tasks-agenda-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+
+.simple-tasks-agenda-row {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-2-2);
+	/* The outline depth, set from TypeScript as a plain number. */
+	padding-inline-start: calc(var(--st-row-depth, 0) * var(--size-4-4));
+	/*
+	 * On touch the whole row is the popover's trigger, so the row itself is the
+	 * target. Grown with padding rather than `min-height` so a one-line row reaches
+	 * the floor with its content still centred — `align-items: flex-start` is what
+	 * keeps the checkbox level with the first line of a wrapped task, and a
+	 * `min-height` would leave that content stuck at the top of an empty box.
+	 * On desktop the floor is `0px` and `max()` picks the ordinary padding.
+	 */
+	padding-block: max(var(--size-2-1), calc((var(--st-touch-target, 0px) - 1.5em) / 2));
+	/* The padding gets a one-line row to within a pixel of the floor; this is what
+	   makes it exact whatever the theme's line height turns out to be. */
+	min-height: var(--st-touch-target, 0px);
+	border-radius: var(--radius-s);
+}
+
+.simple-tasks-agenda-row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.simple-tasks-agenda-row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/*
+ * A task row is draggable onto a Calendar Plus day. Only the feedback lives
+ * here: the payload and its MIME type are in `integrations/calendar-plus.ts`.
+ */
+.simple-tasks-agenda-row[draggable='true'] {
+	cursor: grab;
+}
+
+.simple-tasks-agenda-row.is-dragging {
+	opacity: 0.5;
+	cursor: grabbing;
+}
+
+/* An ancestor shown only to give the task its place in the outline. */
+.simple-tasks-agenda-row.is-context {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-agenda-check {
+	all: unset;
+	box-sizing: border-box;
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	width: var(--checkbox-size);
+	height: var(--checkbox-size);
+	margin-top: 0.1em;
+	border: 1px solid var(--checkbox-border-color);
+	border-radius: var(--checkbox-radius);
+	background-color: var(--background-primary);
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	line-height: 1;
+	cursor: pointer;
+}
+
+/*
+ * A checkbox stays checkbox-sized — a 44px square would look like a button and
+ * nothing like the vault's own checkboxes — so the finger-sized target is an
+ * invisible box centred on it instead. It is exactly as tall as the row (both
+ * come from `--st-touch-target`), so it cannot reach into the row above or below
+ * and steal a tap meant for another task. Zero-sized on desktop.
+ */
+.simple-tasks-agenda-check::before {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: var(--st-touch-target, 0px);
+	height: var(--st-touch-target, 0px);
+	transform: translate(-50%, -50%);
+}
+
+.simple-tasks-agenda-check[aria-pressed='true'] {
+	background-color: var(--checkbox-color);
+	border-color: var(--checkbox-color);
+	color: var(--checkbox-marker-color);
+}
+
+.simple-tasks-agenda-check:hover {
+	border-color: var(--checkbox-border-color-hover);
+}
+
+.simple-tasks-agenda-check:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.simple-tasks-agenda-bullet {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-faint);
+}
+
+.simple-tasks-agenda-bullet .svg-icon {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+.simple-tasks-agenda-text {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--size-2-1);
+	min-width: 0;
+}
+
+.simple-tasks-agenda-title {
+	overflow-wrap: anywhere;
+}
+
+.simple-tasks-agenda-title.is-done {
+	color: var(--text-muted);
+	text-decoration: line-through;
+}
+
+.simple-tasks-agenda-priority {
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-agenda-tag {
+	padding: 0 var(--size-2-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-hover);
+	color: var(--text-accent);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-agenda-source {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * Detail folded under a task: the checkbox-less lines that have no task
+ * anywhere below them, which are notes on the task rather than work of their
+ * own. A native `<details>`, so the disclosure triangle, the keyboard and the
+ * announced state all come for free and nothing has to be registered per row.
+ */
+.simple-tasks-agenda-detail {
+	padding-inline-start: calc(var(--st-row-depth, 0) * var(--size-4-4));
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-agenda-detail-summary {
+	display: list-item;
+	list-style-position: inside;
+	width: fit-content;
+	min-height: var(--st-touch-target, 0px);
+	padding-block: max(var(--size-2-1), calc((var(--st-touch-target, 0px) - 1.5em) / 2));
+	padding-inline: var(--size-2-1);
+	border-radius: var(--radius-s);
+	color: var(--text-faint);
+	cursor: pointer;
+}
+
+.simple-tasks-agenda-detail-summary:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+.simple-tasks-agenda-detail-summary:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.simple-tasks-agenda-detail-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	margin-inline-start: var(--size-2-3);
+	padding-inline-start: var(--size-4-2);
+	padding-block: var(--size-2-1);
+	border-inline-start: 1px solid var(--background-modifier-border);
+}
+
+.simple-tasks-agenda-detail-line {
+	padding-inline-start: calc(var(--st-detail-depth, 0) * var(--size-4-3));
+	color: var(--text-faint);
+	overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ *
+ * Completion burst
+ *
+ * A ~600 ms particle burst at the point the completion was triggered. No
+ * dependency, no canvas: a handful of absolutely positioned divs, each one
+ * given its own direction, delay and size through custom properties by
+ * `ui/celebrate.ts`, and all animated by the single keyframe below.
+ *
+ * The host is removed by a timer, so nothing here relies on `animation-fill-mode`
+ * to keep the DOM clean.
+ * ------------------------------------------------------------------ */
+
+.simple-tasks-burst {
+	position: fixed;
+	inset-block-start: var(--st-burst-y, 50%);
+	inset-inline-start: var(--st-burst-x, 50%);
+	z-index: var(--layer-notice);
+	width: 0;
+	height: 0;
+	/* An overlay that swallowed clicks would break the very button that fired it. */
+	pointer-events: none;
+	contain: layout style;
+}
+
+.simple-tasks-burst-particle {
+	position: absolute;
+	inset-block-start: calc(var(--st-burst-size) / -2);
+	inset-inline-start: calc(var(--st-burst-size) / -2);
+	width: var(--st-burst-size);
+	height: var(--st-burst-size);
+	border-radius: var(--radius-l);
+	background-color: var(--st-burst-color);
+	/* Only transform and opacity animate, so the burst stays on the compositor. */
+	will-change: transform, opacity;
+	animation: simple-tasks-burst 600ms var(--st-burst-delay, 0ms) ease-out both;
+}
+
+@keyframes simple-tasks-burst {
+	0% {
+		transform: translate3d(0, 0, 0) scale(0.2);
+		opacity: 0;
+	}
+
+	20% {
+		opacity: 1;
+	}
+
+	100% {
+		transform: translate3d(
+				calc(var(--st-burst-dx, 0) * var(--st-burst-distance)),
+				calc(var(--st-burst-dy, 0) * var(--st-burst-distance)),
+				0
+			)
+			scale(var(--st-burst-scale, 1));
+		opacity: 0;
+	}
+}
+
+/*
+ * `ui/celebrate.ts` already refuses to create the nodes when the user asked for
+ * reduced motion, so this is the backstop for a preference that changes while a
+ * burst is in flight — and the guarantee a reader of the stylesheet can check.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.simple-tasks-burst {
+		display: none;
+	}
+
+	.simple-tasks-burst-particle {
+		animation: none;
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Bases view
+ *
+ * A full-width pane rather than a sidebar, so the rows are roomier than the
+ * agenda's, but the vocabulary is the same: a status button, the text, the
+ * tags, and the outline depth carried by a custom property.
+ * ------------------------------------------------------------------ */
+
+.simple-tasks-bases {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	height: 100%;
+	padding: var(--size-4-3);
+	overflow: auto;
+}
+
+.simple-tasks-bases-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.simple-tasks-bases-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.simple-tasks-bases-summary {
+	margin-block-start: auto;
+	padding-block-start: var(--size-2-2);
+	border-block-start: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-bases-section-title {
+	color: var(--text-accent);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+}
+
+.simple-tasks-bases-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+
+.simple-tasks-bases-group-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--size-4-1);
+	padding-block: var(--size-2-1);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.simple-tasks-bases-group-count {
+	color: var(--text-faint);
+}
+
+.simple-tasks-bases-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.simple-tasks-bases-row {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-2-2);
+	padding: max(var(--size-2-1), calc((var(--st-touch-target, 0px) - 1.5em) / 2)) var(--size-2-2);
+	/* The outline depth, set from TypeScript as a plain number. */
+	padding-inline-start: calc(var(--size-2-2) + var(--st-row-depth, 0) * var(--size-4-4));
+	min-height: var(--st-touch-target, 0px);
+	border-radius: var(--radius-s);
+}
+
+.simple-tasks-bases-row:hover,
+.simple-tasks-bases-row:focus-visible {
+	background-color: var(--background-modifier-hover);
+}
+
+.simple-tasks-bases-row.is-context {
+	color: var(--text-muted);
+}
+
+.simple-tasks-bases-check {
+	all: unset;
+	box-sizing: border-box;
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	width: var(--size-4-4);
+	height: var(--size-4-4);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	line-height: 1;
+	cursor: pointer;
+}
+
+/* Same invisible finger-sized target as the agenda's checkbox, same reasons. */
+.simple-tasks-bases-check::before {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: var(--st-touch-target, 0px);
+	height: var(--st-touch-target, 0px);
+	transform: translate(-50%, -50%);
+}
+
+.simple-tasks-bases-check[aria-pressed='true'] {
+	border-color: var(--interactive-accent);
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.simple-tasks-bases-bullet {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	color: var(--text-faint);
+}
+
+.simple-tasks-bases-bullet svg {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+.simple-tasks-bases-text {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--size-2-1);
+	min-width: 0;
+}
+
+.simple-tasks-bases-title {
+	overflow-wrap: anywhere;
+}
+
+.simple-tasks-bases-title.is-done {
+	color: var(--text-muted);
+	text-decoration: line-through;
+}
+
+.simple-tasks-bases-priority {
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-bases-tag {
+	padding: 0 var(--size-2-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-hover);
+	color: var(--text-accent);
+	font-size: var(--font-ui-smaller);
+}
+
+.simple-tasks-bases-source {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}

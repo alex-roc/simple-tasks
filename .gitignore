@@ -20,3 +20,8 @@ data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+# Internal notes in Spanish: architecture memory and the QA script, written for
+# the author rather than for a reader of the repository. The public, English
+# documentation lives in docs/ and is committed.
+dev-docs/
