@@ -151,7 +151,7 @@ reading view — and one popover appears with everything you can do to it:
 
 - **Status** — jump to any status in your catalog.
 - **Priority** — set one of the five, or clear it.
-- **Move to** — today, tomorrow, another date, or another note and heading. The
+- **Move to** — today, the next day, another date, or another note and heading. The
   whole subtree moves with the task, reindented to its destination. If the
   destination note does not exist yet it is created from its template.
 - **Due** — today, tomorrow, another date, or remove it. Which date field this
@@ -160,6 +160,18 @@ reading view — and one popover appears with everything you can do to it:
   or remove one that is on the line.
 - **Open the note at this line.**
 
+**"The next day" is measured from the task, not from the clock.** A task living in
+the daily note of 11 August moves to 12 August, whatever today happens to be —
+which is the point of standing in yesterday's note and pushing what did not happen
+to the next day. When that day is not today, the button stops saying "tomorrow" and
+says the date it will use, so there is nothing to guess. Tasks outside a daily note
+— a project note, a weekly or monthly note — have no day of their own, so for them
+it is tomorrow in the ordinary sense.
+
+The **due date** row is the opposite and on purpose: a due date is a promise about
+the real calendar, so its today and tomorrow are the ones on the clock. Both rows
+show the date they resolved to in their tooltip.
+
 The popover is keyboard accessible. In the agenda and in the Bases view every
 task row is a tab stop: Tab to one and press Enter or Space, and the popover opens
 with the focus already on its first button. Tab and Shift+Tab then cycle *inside*
@@ -167,6 +179,10 @@ it and cannot fall out, Escape closes it, and the focus goes back exactly where 
 was — the row you came from, or the line in the editor if you opened it with
 **Show task actions**. Hovering a second task replaces the popover instead of
 stacking another one.
+
+Hovering the **checkbox** itself opens nothing. That is the control you click to
+finish the task, and a card arriving over it would be a card in the way of the
+gesture; the popover belongs to the rest of the line.
 
 **On a phone or a tablet** there is no hover, so the same popover has two other
 ways in:
@@ -177,34 +193,58 @@ ways in:
   and does nothing on its own — it never covers what you are typing, and it does
   not move the text.
 
-Both are mobile only. On the desktop, right-clicking a task and the active line
-keep behaving exactly as Obsidian makes them behave.
+**And nothing else opens it there.** The hover trigger is registered on the desktop
+only: a touch browser makes up mouse events from a tap, so on a phone the popover
+used to open from taps aimed at something else — and a tap on the ⋮ button opened
+it twice, once from the button and once from the "hover" of the same tap. The
+button is the only route in a note, and the long press the only one in a view.
+
+On the desktop, right-clicking a task and the active line keep behaving exactly as
+Obsidian makes them behave.
 
 With the cursor on a task line, the palette also offers **Cycle task status**,
-**Move task to tomorrow** and **Set task due date**. On a line that is not a
+**Move task to the next day** and **Set task due date**. On a line that is not a
 task, those commands do not appear at all.
+
+### Several tasks at once: select, then hover
+
+A day's review usually ends with three tasks going to the same place, and doing
+that one popover at a time is four gestures each.
+
+**In a note, select the lines.** Drag across them, `Shift`+arrow down them, or
+`Cmd`+drag three separate ones — any text selection your editor can make. Then
+**hover one of the selected lines**: the popover opens as usual, its subtitle says
+how many tasks are selected, and **every action in it applies to all of them** —
+status, priority, due date, tags, and move. There is no separate bulk menu, and
+nothing of ours to discover.
+
+**In the agenda** the same thing works by dragging across the rows, which paints
+them as selected. `Cmd`/`Ctrl` + click adds or removes one; `Escape`, or a plain
+click, drops the selection. A press without a drag selects nothing, so a plain
+click still means what it always did.
+
+Three details worth knowing:
+
+- **Hovering a line that is not in the selection acts on that line alone**, even
+  while a selection exists elsewhere. The popover always acts on what you are
+  pointing at.
+- **A selected agenda row can be dragged onto a Calendar Plus day**, and it takes
+  the whole selection with it. That is also why only selected rows are draggable
+  there: a press on an unselected row paints, a press on a selected one drags, and
+  one movement cannot mean both.
+- **Desktop only.** Selecting lines with a finger fights scrolling, so on a phone
+  the popover stays one task at a time.
+
+Two things the batch does for you. A task selected together with one of its
+**ancestors** is dropped, because moving the ancestor takes it along anyway. And
+within a note the tasks move **bottom-up**, so the lines above never shift under
+the batch. A task whose line can no longer be identified is left where it is and
+counted in the notice, rather than written to the wrong place.
 
 Every write goes through one serializer and one atomic write, so nothing races
 with the editor when the note is open in front of you. If the line has changed
 since the plugin last read it, the action stops and tells you rather than write
 to a line it cannot identify.
-
-## A burst when you finish something
-
-Completing a task fires a short particle burst over the line you ticked. It fires
-for **every** way a task gets completed, including the native checkbox in the
-note itself — live preview, reading view, or typing the `x` by hand.
-
-Three things it deliberately does not do:
-
-- A parent task whose subtasks are still open closes nothing, so it gets no
-  burst. The last remaining child gets it.
-- If the note is not on screen, nothing is drawn: an edit made outside Obsidian
-  or arriving through sync does not throw a party.
-- An edit that completes several tasks at once fires one burst, not one per task.
-
-Switch it off in Settings → Actions → *Celebrate completions*. It stays still on
-its own if your system asks for reduced motion.
 
 ## Completion dates
 
@@ -222,6 +262,30 @@ already carries that syntax. To know which day a task closed it uses, in order:
 Only tasks with a date precise to the day shade the heatmap. Tasks from weekly
 or monthly notes count in the totals but do not invent activity on the 1st of
 the month.
+
+### A day counts what closed that day, wherever it lives
+
+This is worth stating plainly, because a figure that looks wrong usually is not.
+The heatmap cell for a day — and the shading Calendar Plus draws on it — counts
+**every task completed that day**, not the tasks of that day's note. A task
+finished in a project note today shades today. So a daily note with four open
+tasks can perfectly well sit under a tooltip that says "3 completed · 4 open": the
+three closed elsewhere, the four open here.
+
+Both tooltips say so when it applies — "3 of them closed in other notes" — so the
+figure never has to be reverse-engineered. If you want to know *which* ones,
+`simple-tasks:today date=YYYY-MM-DD` lists them with their notes.
+
+### How soon it updates
+
+A tick in a note takes a moment to reach the views, and most of that wait is not
+ours: Obsidian keeps the editor's buffer in memory and only writes it to disk on
+its own schedule, and `metadataCache` — the plugin's only source of truth about
+what a note contains — does not change until then. After that, the plugin
+reindexes the note within 200 ms and repaints within another 120.
+
+Ticking a box from the plugin's own surfaces — the agenda, the popover, the Bases
+view — writes the note immediately, so those are the fast path.
 
 ## Appearance
 
@@ -241,9 +305,12 @@ back to English.
 ## With Calendar Plus
 
 Everything above works on its own. When the **Calendar Plus** plugin is
-installed, Simple Tasks registers itself as one of its sources and the calendar
-gains task counts on every cell, drag-and-drop of a task onto a day, and a
-context-menu entry that opens the agenda for that day. See
+installed, Simple Tasks registers itself as one of its sources: **every day is
+shaded by how many tasks you completed in it**, so the calendar becomes a second
+heatmap in the panel you already have open. Prefer the dots of the original
+Calendar? *How the calendar shows tasks*, in the settings, switches to those. It
+also accepts tasks dragged from the agenda onto a day — the whole selection, if you
+painted one — and adds a context-menu entry that opens the agenda for that day. See
 [commands-and-cli.md](commands-and-cli.md#with-calendar-plus) for the detail.
 
 Calendar Plus is entirely optional: nothing is announced at startup when it is

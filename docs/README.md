@@ -25,7 +25,10 @@ them.
    appears: change the status, set a priority or a due date, add a tag, or move
    the task to another day or note. On a phone, long press the row instead, or
    put the cursor on the task line and press the ⋮ button that appears at its end.
-4. Run **Open heatmap** to see a year of completed work at a glance.
+4. To act on several tasks at once, press and drag across their rows in the agenda
+   to paint a selection, then hover one of them: the same popover appears and now
+   writes to all of them.
+5. Run **Open heatmap** to see a year of completed work at a glance.
 
 If your statuses, folders or periodic-note layout differ from the defaults, the
 [settings reference](settings.md) is the place to adjust them.

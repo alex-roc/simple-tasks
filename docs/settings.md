@@ -40,13 +40,14 @@ What the hover popover and the agenda do when they write a line.
   (default) appends at the end of the note.
 - **Date field used when rescheduling** — which date the popover writes when you
   pick one: `Due` (default), `Scheduled` or `Start`.
-- **Popover on hover in the editor** — on by default. Shows the task actions
-  when the pointer rests on a task line in a note. Turn it off to use the
-  **Show task actions** command instead; the popover in the plugin's own views is
-  unaffected, and so is the ⋮ button that mobile puts at the end of the task line
-  the cursor is on.
-- **Celebrate completions** — on by default. The particle burst when a task is
-  finished. Nothing moves when your system asks for reduced motion.
+- **Popover on hover in the editor** — on by default, and **desktop only**: there
+  is no hover on a phone, where the ⋮ button at the end of the task line the cursor
+  is on is the whole route instead. Turn it off to use the **Show task actions**
+  command; the popover in the plugin's own views is unaffected.
+- **How the calendar shows tasks** — only shown when Calendar Plus is connected.
+  *Background intensity* (default) shades each day by how much you completed in it;
+  *Dots* marks completed and still-open tasks the way the original Calendar plugin
+  did. Hovering a day gives both figures either way.
 
 ## Heatmap view
 
@@ -56,8 +57,9 @@ update the open view immediately.
 
 - **Level and experience** — on by default. The level reached, its progress bar
   and how much experience is left to the next one.
-- **Streak cards** — six cards: today, this week, the current and best streaks,
-  this month, and the average per active day.
+- **Streak cards** — six figures: today, this week, the current and best streaks,
+  this month, and the average per active day. Drawn as label-and-figure pairs, not
+  as boxes: the panel is a caption to the grid and is meant to read like one.
 - **Summary** — how much was completed over how many active days, and which day
   was the busiest.
 - **Top tags** — the tags carried by the most completed tasks.

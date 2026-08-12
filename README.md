@@ -31,7 +31,18 @@ were.
   task row is a tab stop, Enter opens the popover with focus inside it, Tab
   cannot fall out of it, Escape closes it and focus goes back where it was. On
   mobile, where there is no hover, a long press on a row opens the same popover,
-  and a task line the cursor is on grows a ⋮ button at its end.
+  and a task line the cursor is on grows a ⋮ button at its end — and *only* those,
+  so a tap never opens a card you did not ask for.
+- **Relative to the task, not to the clock** — "move to the next day" on a task in
+  Monday's note means Tuesday, whatever day you are reading it on. That is the
+  gesture of reviewing a day that has passed, and the button shows the date it
+  resolved to whenever that is not tomorrow.
+- **Several tasks at once** — **select the lines in the note** the way you select
+  any text, then hover one of them: the same popover appears and every action in it
+  applies to all of them. It works the same way in the agenda, by dragging across
+  its rows. A task selected with its own ancestor is skipped, the moves run
+  bottom-up so no line shifts under the batch, and one notice says how many
+  arrived.
 - **Projects from the links you already write** — a task belongs to the first
   `[[wikilink]]` on its own line, or failing that to the nearest ancestor that
   has one, so `- 🎯 [[census-explorer]]` files everything nested under it with no
@@ -46,10 +57,6 @@ were.
   closed, not boxes that were ticked.
 - **Tags from three places** — the task line, the note, and inherited from the
   outline ancestors.
-- **A burst when you finish something** — a short particle animation wherever you
-  ticked the box, including the native checkbox in the note itself. A parent
-  whose subtasks are still open closes nothing and gets nothing. One toggle turns
-  it off, and it stays still when your system asks for reduced motion.
 - **Bases view** — filter *notes* with the native Bases interface, see their
   *tasks*, grouped and depth-capped from the Bases toolbar.
 - **Terminal commands** — `simple-tasks:stats`, `simple-tasks:today` and
@@ -111,21 +118,21 @@ capabilities newer than 1.10.0 are probed, so nothing breaks without them.
 ## Optional: Calendar Plus
 
 Everything works on its own. When the **Calendar Plus** plugin is installed,
-Simple Tasks registers itself as one of its sources: the calendar shows task
-counts on every cell and its period buttons, accepts a task dragged from the
-agenda onto a day, and gains a context-menu entry that opens the agenda for that
-day. Nothing is announced at startup when it is absent —
-[details](docs/commands-and-cli.md#with-calendar-plus).
+Simple Tasks registers itself as one of its sources: **every day is shaded by how
+much you completed in it**, so the calendar becomes a second heatmap in the sidebar
+you already have open, with the figures on hover — dots instead of the shading if
+you prefer them. It also accepts tasks dragged from the agenda onto a day, and gains
+a context-menu entry that opens the agenda for that day. Nothing is announced at
+startup when it is absent — [details](docs/commands-and-cli.md#with-calendar-plus).
 
-<!-- SCREENSHOT 4 — optional, only if Calendar Plus is installed: the calendar
-     with task counts on the cells, mid-drag of a task onto a day. -->
+<!-- SCREENSHOT 4 — optional, only if Calendar Plus is installed: the calendar with
+     the cells shaded by completions, mid-drag of a task onto a day. -->
 
 ## Theming
 
 `styles.css` uses only Obsidian's CSS variables, so both views follow your theme
 in light and dark mode. With the **Style Settings** plugin you also get controls
-for the heatmap's colour, cell size, gap and density, and for the completion
-particles.
+for the heatmap's colour, cell size, gap, density and roundness.
 
 ## Contributing
 
@@ -147,31 +154,37 @@ extension. `pnpm seed` populates a scratch vault with realistic notes and
 `pnpm verify` runs the real parser and serializer over every list line of it,
 failing if one stops round-tripping byte-for-byte.
 
-### Installing a build into your own vault
+### Running a local build in your own vault
 
 BRAT installs from a published release, which means a tag and a release for every
-change you want to try. To install a local build straight into a vault instead,
-copy `.env.local.example` to `.env.local` and point it at the plugin folder:
+change you want to try. To run a local build instead, copy `.env.local.example` to
+`.env.local` and name your vaults there — vault roots, not plugin folders:
 
 ```bash
-OBSIDIAN_DEPLOY_TO=/Users/you/…/YourVault/.obsidian/plugins/simple-tasks
+VAULT_TEST=/Users/you/dev/my-obsidian-plugins
+VAULT_REAL=/Users/you/Library/…/YourVault
+VAULT_DEFAULT=TEST
 ```
 
 Then:
 
 ```bash
-pnpm install:vault   # build and install into that vault, once
-pnpm dev:vault       # the same, but rebuilding and reinstalling on every save
+pnpm dev                          # watch, reinstalling on every save
+pnpm dev --vault=real             # the same, in another vault
+pnpm install:vault --vault=real   # one production build, installed there
 ```
 
-Both copy `main.js`, `manifest.json` and `styles.css`, plus the `.hotreload`
-marker that lets [Hot Reload](https://github.com/pjeby/hot-reload) reload the
-plugin without restarting Obsidian.
+Each install copies `main.js`, `manifest.json` and `styles.css` into
+`<vault>/.obsidian/plugins/simple-tasks`, plus the `.hotreload` marker that lets
+[Hot Reload](https://github.com/pjeby/hot-reload) reload the plugin without
+restarting Obsidian. The plugin folder comes from the manifest id, so the same
+`.env.local` works for every plugin you develop.
 
-`pnpm build` never writes to a vault — installing only ever happens when you ask
-for it by name. And these commands copy rather than symlink on purpose: a symlink
-would put this repo's `node_modules` and `.git` inside a vault that iCloud,
-Dropbox or Syncthing is watching.
+Two deliberate choices. `pnpm build` never writes to a vault — that is the CI
+path, and installing only happens when you ask for it. And installs copy rather
+than symlink, because a symlink would put this repo's `node_modules` and `.git`
+inside a vault that iCloud, Dropbox or Syncthing is watching; if a vault already
+reaches the repo through a symlink, the install is skipped instead.
 
 Conventions for the codebase are in [`AGENTS.md`](AGENTS.md).
 

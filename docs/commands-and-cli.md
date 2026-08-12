@@ -13,7 +13,7 @@ Four commands are always available:
 | **Open heatmap** | Opens the heatmap view. |
 | **Open agenda** | Opens the agenda view on the day it last showed. |
 | **Open today's agenda** | Opens the agenda on today. |
-| **Show tasks on the calendar** | Opens the Calendar Plus calendar with the task counts on it, bringing it to the front even if it was already open behind another sidebar tab. Without Calendar Plus installed it explains what it would add instead of failing. |
+| **Show tasks on the calendar** | Opens the Calendar Plus calendar with the completions shading it, bringing it to the front even if it was already open behind another sidebar tab. Without Calendar Plus installed it explains what it would add instead of failing. |
 
 Four more appear **only when the cursor is on a task line**, and are absent from
 the palette otherwise:
@@ -22,7 +22,7 @@ the palette otherwise:
 |---|---|
 | **Cycle task status** | Moves the task to the *next* symbol of its status, as configured in the status catalog. |
 | **Show task actions** | Opens the actions popover on the task under the cursor — the keyboard route to everything the hover menu offers. Focus moves into the popover and comes back to the line when it closes. |
-| **Move task to tomorrow** | Moves the task, with its whole subtree, to tomorrow's note. |
+| **Move task to the next day** | Moves the task, with its whole subtree, to the note of the day after **its own** day — the day after the daily note it lives in, or after today when it lives anywhere else. |
 | **Set task due date** | Asks for a date and writes it to the date field chosen in the settings. |
 
 ## Bases view
@@ -99,13 +99,29 @@ uses the last one that had focus.
 When the **Calendar Plus** plugin is installed and enabled, Simple Tasks
 registers itself as one of its sources and the calendar gains:
 
-- **Task counts on every cell** — completions shade the day, still-open tasks
-  show as hollow dots, and the tooltip gives both numbers. The header's week,
-  month, quarter, semester and year buttons carry the totals of their period.
-- **Drag a task onto a day** — pick it up in the agenda, drop it on a calendar
-  cell, and the task moves to that period's note with its whole subtree. Cells
-  light up only for tasks: the drag carries its own MIME type, so nothing else is
-  offered a target it would refuse.
+- **A shade on every day** — how many tasks you completed there, scaled against
+  your busiest day, so a month reads the same wherever you are in the year.
+  Hovering a cell gives both figures, completed and still open, and that includes
+  the week numbers and the year, semester, quarter and month buttons: those carry
+  their period's totals in the tooltip but are deliberately **not** shaded, because
+  shading a whole row or a wide button reads as a selection rather than as a
+  heatmap.
+
+  A shade instead of dots because a calendar cell in a sidebar is about twenty
+  pixels of room and four dots in it are a diagram. If you prefer the dots anyway,
+  *How the calendar shows tasks* in Simple Tasks' settings switches to them. Days
+  with open tasks also get a `simple-tasks-has-open` class, if you want to mark
+  them from a CSS snippet.
+
+  The shade needs Calendar Plus's **Values from sources** setting on *background
+  intensity*, which is its default, and the figures need its hover on *cell
+  summary*, also the default. On *hidden* the source's contribution disappears
+  unless you switch to dots.
+- **Drag tasks onto a day** — pick a task up in the agenda, drop it on a calendar
+  cell, and it moves to that period's note with its whole subtree. A painted
+  selection travels as a whole, so several tasks land in the same note in one
+  gesture. Cells light up only for tasks: the drag carries its own MIME type, so
+  nothing else is offered a target it would refuse.
 - **"Show the tasks of this day"** in a cell's context menu, which opens the
   agenda on that date.
 
