@@ -1,9 +1,9 @@
 import { Events, debounce, moment } from 'obsidian';
 import type { App, Menu } from 'obsidian';
-import { moveTaskToDate } from '../actions/move-task.ts';
+import { moveTasksToDate } from '../actions/move-task.ts';
 import type { Task } from '../domain/task.ts';
 import { INDEX_CHANGED } from '../index/task-index.ts';
-import { isDayPrecise } from '../index/stats.ts';
+import { isDayPrecise, isFromOwnDayNote } from '../index/stats.ts';
 import { t, tCount } from '../i18n/index.ts';
 import type SimpleTasksPlugin from '../main.ts';
 import type {
@@ -56,18 +56,31 @@ const INSTALL_URL = `obsidian://show-plugin?id=${CALENDAR_PLUS_ID}`;
  */
 export const TASK_DRAG_MIME = 'application/x-simple-tasks-task';
 
-/** What travels in the drag. Enough to find the task again after a repaint. */
-interface TaskDragPayload {
+/** One task in the drag. Enough to find it again after a repaint. */
+interface TaskDragEntry {
 	path: string;
 	line: number;
 	/** `cleanText`, the fallback when the line number has moved on. */
 	text: string;
 }
 
-/** Marks a drag as carrying one of our tasks. */
-export function setTaskDragData(dataTransfer: DataTransfer | null, task: Task): void {
-	if (dataTransfer === null) return;
-	const payload: TaskDragPayload = { path: task.path, line: task.line, text: task.cleanText };
+/**
+ * What travels in the drag: **always a list**, even for one task.
+ *
+ * A painted selection can be dragged onto a day as a whole, so the drop has to
+ * handle several; making the single case a list of one means there is one shape to
+ * read and one path to test, rather than two that drift.
+ */
+interface TaskDragPayload {
+	tasks: TaskDragEntry[];
+}
+
+/** Marks a drag as carrying our tasks. */
+export function setTaskDragData(dataTransfer: DataTransfer | null, tasks: readonly Task[]): void {
+	if (dataTransfer === null || tasks.length === 0) return;
+	const payload: TaskDragPayload = {
+		tasks: tasks.map((task) => ({ path: task.path, line: task.line, text: task.cleanText })),
+	};
 	dataTransfer.setData(TASK_DRAG_MIME, JSON.stringify(payload));
 	dataTransfer.effectAllowed = 'move';
 }
@@ -77,20 +90,24 @@ function carriesTask(evt: DragEvent): boolean {
 	return evt.dataTransfer?.types.includes(TASK_DRAG_MIME) === true;
 }
 
-/** The payload of a drop, or `null` when it is somebody else's drag. */
-function readTaskDrag(evt: DragEvent): TaskDragPayload | null {
+/** The tasks in a drop, or an empty list when it is somebody else's drag. */
+function readTaskDrag(evt: DragEvent): TaskDragEntry[] {
 	const raw = evt.dataTransfer?.getData(TASK_DRAG_MIME);
-	if (raw === undefined || raw === '') return null;
+	if (raw === undefined || raw === '') return [];
 	try {
 		const parsed: unknown = JSON.parse(raw);
-		if (typeof parsed !== 'object' || parsed === null) return null;
-		const { path, line, text } = parsed as Partial<TaskDragPayload>;
-		if (typeof path !== 'string' || typeof line !== 'number' || typeof text !== 'string') {
-			return null;
-		}
-		return { path, line, text };
+		if (typeof parsed !== 'object' || parsed === null) return [];
+		const { tasks } = parsed as { tasks?: unknown };
+		if (!Array.isArray(tasks)) return [];
+		// Every field checked: the payload came off a `DataTransfer`, which anything
+		// on the page could have written.
+		return tasks.filter((entry: unknown): entry is TaskDragEntry => {
+			if (typeof entry !== 'object' || entry === null) return false;
+			const { path, line, text } = entry as Partial<TaskDragEntry>;
+			return typeof path === 'string' && typeof line === 'number' && typeof text === 'string';
+		});
 	} catch {
-		return null;
+		return [];
 	}
 }
 
@@ -117,9 +134,16 @@ export function openCalendarPlusPage(): void {
 interface PeriodCount {
 	completed: number;
 	open: number;
+	/**
+	 * How many of the completions came from **another note** — a task ticked in a
+	 * project note, which the completion log dates. It is what answers "my daily
+	 * note has nothing done, so why does this day say three completed?", and the
+	 * tooltip says it rather than leaving it to be deduced.
+	 */
+	elsewhere: number;
 }
 
-const NO_TASKS: PeriodCount = { completed: 0, open: 0 };
+const NO_TASKS: PeriodCount = { completed: 0, open: 0, elsewhere: 0 };
 
 /** At most this many dots of each kind, so a busy day stays readable. */
 const MAX_DOTS_PER_KIND = 2;
@@ -206,12 +230,14 @@ class TaskCounts {
 	private sumRange(from: string, to: string): PeriodCount {
 		let completed = 0;
 		let open = 0;
+		let elsewhere = 0;
 		for (const [date, count] of this.byDate ?? []) {
 			if (date < from || date > to) continue;
 			completed += count.completed;
 			open += count.open;
+			elsewhere += count.elsewhere;
 		}
-		return { completed, open };
+		return { completed, open, elsewhere };
 	}
 
 	private build(): void {
@@ -221,18 +247,28 @@ class TaskCounts {
 		for (const task of this.plugin.index.all()) {
 			const date = task.effectiveDate;
 			if (!task.isTask || date === null) continue;
-			bump(byDate, date, task.isCompleted);
-			if (isDayPrecise(task)) bump(byDay, date, task.isCompleted);
+			const own = isFromOwnDayNote(task);
+			bump(byDate, date, task.isCompleted, own);
+			if (isDayPrecise(task)) bump(byDay, date, task.isCompleted, own);
 		}
 		this.byDay = byDay;
 		this.byDate = byDate;
 	}
 }
 
-function bump(counts: Map<string, PeriodCount>, date: string, completed: boolean): void {
-	const current = counts.get(date) ?? { completed: 0, open: 0 };
-	if (completed) current.completed += 1;
-	else current.open += 1;
+function bump(
+	counts: Map<string, PeriodCount>,
+	date: string,
+	completed: boolean,
+	ownDayNote: boolean
+): void {
+	const current = counts.get(date) ?? { completed: 0, open: 0, elsewhere: 0 };
+	if (completed) {
+		current.completed += 1;
+		if (!ownDayNote) current.elsewhere += 1;
+	} else {
+		current.open += 1;
+	}
 	counts.set(date, current);
 }
 
@@ -267,10 +303,22 @@ function periodRange(date: string, granularity: Granularity): { start: string; e
 /**
  * What Simple Tasks contributes to a calendar cell.
  *
- * Dots and a value carry different things on purpose: the value is the number
- * of **completions**, which is the magnitude worth shading, and the dots say
- * whether anything is still **open** — the contract's own filled/hollow
- * distinction. The tooltip carries both exactly.
+ * Two shapes, chosen in settings, because the contract offers both and they are
+ * good at different things:
+ *
+ * - **`intensity`** (default) — the number of completions as a `value`, which the
+ *   calendar paints as a background shade. A cell in a sidebar is about twenty
+ *   pixels of room; a shade costs none of it and says "busier than that one" at a
+ *   glance, which is the comparison a calendar is being asked for. What the dots
+ *   carried — whether anything is still **open** — is in the tooltip, which the
+ *   default hover mode shows, and in the `has-open` class.
+ * - **`dots`** — filled markers for completions and hollow ones for what is still
+ *   open, capped at {@link MAX_DOTS_PER_KIND} of each. This is the original
+ *   Calendar's vocabulary, and it also keeps the `dots` half of the API exercised
+ *   by a real consumer rather than only by the built-in sources.
+ *
+ * The tooltip is the same either way: it is the one channel that never depends on
+ * a display setting of the calendar's or of ours.
  */
 class TaskCalendarSource implements CalendarSource {
 	readonly id = 'simple-tasks';
@@ -290,28 +338,39 @@ class TaskCalendarSource implements CalendarSource {
 
 	getMetadata(date: Moment, granularity: Granularity): CellMetadata | null {
 		const iso = date.format('YYYY-MM-DD');
-		const { completed, open } = this.counts.forPeriod(iso, granularity);
+		const { completed, open, elsewhere } = this.counts.forPeriod(iso, granularity);
 		if (completed === 0 && open === 0) return null;
 
-		const dots: Dot[] = [];
-		for (let i = 0; i < Math.min(completed, MAX_DOTS_PER_KIND); i += 1) {
-			dots.push({ className: 'done', color: 'var(--color-green)', isFilled: true });
-		}
-		for (let i = 0; i < Math.min(open, MAX_DOTS_PER_KIND); i += 1) {
-			dots.push({ className: 'open', color: 'var(--text-muted)', isFilled: false });
-		}
+		const figures: string[] = [];
+		if (completed > 0) figures.push(tCount('calendar.completedCount', completed));
+		if (open > 0) figures.push(tCount('calendar.openCount', open));
+		// On its own line, and only when it has something to explain: a day whose
+		// completions are all in its own note needs no footnote.
+		const tooltip =
+			elsewhere > 0
+				? `${figures.join(' · ')}\n${tCount('calendar.elsewhereCount', elsewhere)}`
+				: figures.join(' · ');
 
-		const lines: string[] = [];
-		if (completed > 0) lines.push(tCount('calendar.completedCount', completed));
-		if (open > 0) lines.push(tCount('calendar.openCount', open));
-
-		return {
-			dots,
-			value: completed,
-			valueScale: this.counts.scaleFor(granularity),
+		const metadata: CellMetadata = {
 			classes: open > 0 ? ['has-open'] : [],
-			tooltip: lines.join(' · '),
+			tooltip,
 		};
+
+		if (this.plugin.settings.calendarDisplay === 'dots') {
+			const dots: Dot[] = [];
+			for (let i = 0; i < Math.min(completed, MAX_DOTS_PER_KIND); i += 1) {
+				dots.push({ className: 'done', color: 'var(--color-green)', isFilled: true });
+			}
+			for (let i = 0; i < Math.min(open, MAX_DOTS_PER_KIND); i += 1) {
+				dots.push({ className: 'open', color: 'var(--text-muted)', isFilled: false });
+			}
+			metadata.dots = dots;
+			return metadata;
+		}
+
+		metadata.value = completed;
+		metadata.valueScale = this.counts.scaleFor(granularity);
+		return metadata;
 	}
 
 	/**
@@ -325,14 +384,14 @@ class TaskCalendarSource implements CalendarSource {
 	}
 
 	onDrop(date: Moment, granularity: Granularity, evt: DragEvent): boolean {
-		const payload = readTaskDrag(evt);
-		if (payload === null) return false;
-		const task = this.resolve(payload);
-		if (task === null) return false;
+		const tasks = readTaskDrag(evt)
+			.map((entry) => this.resolve(entry))
+			.filter((task): task is Task => task !== null);
+		if (tasks.length === 0) return false;
 		// The contract wants a synchronous verdict and the move is a write, so the
 		// answer is "yes, it is mine" and the work continues in the background.
 		// The index's `changed` event repaints the calendar when it lands.
-		void moveTaskToDate(this.plugin, task, date.format('YYYY-MM-DD'), granularity);
+		void moveTasksToDate(this.plugin, tasks, date.format('YYYY-MM-DD'), granularity);
 		return true;
 	}
 
@@ -358,7 +417,7 @@ class TaskCalendarSource implements CalendarSource {
 	 * text is the fallback, because the index is debounced and the note may have
 	 * been edited between the `dragstart` and the drop.
 	 */
-	private resolve(payload: TaskDragPayload): Task | null {
+	private resolve(payload: TaskDragEntry): Task | null {
 		const items = this.plugin.index.fileEntry(payload.path)?.items ?? [];
 		const atLine = items.find((item) => item.line === payload.line && item.isTask);
 		if (atLine !== undefined && atLine.cleanText === payload.text) return atLine;
@@ -371,8 +430,12 @@ class TaskCalendarSource implements CalendarSource {
  * Wiring
  * ------------------------------------------------------------------ */
 
-/** Repaints are coalesced: index changes arrive per keystroke pause. */
-const REFRESH_DEBOUNCE_MS = 300;
+/**
+ * Repaints are coalesced: index changes arrive per keystroke pause. Short,
+ * because this sits *behind* the indexer's own debounce and a repaint of a month
+ * is fifty synchronous map lookups.
+ */
+const REFRESH_DEBOUNCE_MS = 100;
 
 /** The plugin manager fires this on every enable, disable and uninstall. */
 const PLUGINS_CHANGED = 'changed';
@@ -402,6 +465,17 @@ export class CalendarPlusIntegration {
 	/** Whether the source is registered right now. Drives the settings row. */
 	get isConnected(): boolean {
 		return this.api !== null;
+	}
+
+	/**
+	 * Repaints the calendar now, undebounced.
+	 *
+	 * For a setting of ours that changes what the source contributes: the calendar
+	 * cannot know about it, and the debounced path exists for index churn, not for
+	 * a control the user just moved.
+	 */
+	refresh(): void {
+		this.api?.refresh(this.source.id);
 	}
 
 	load(): void {

@@ -21,6 +21,8 @@ export interface StatTask {
 	isCompleted: boolean;
 	effectiveDate: string | null;
 	noteGranularity: PeriodicGranularity | null;
+	/** First day of the containing periodic note's period, or null. */
+	noteDate: string | null;
 	dates: { done?: string };
 	priority: TaskPriority | null;
 	tags: readonly string[];
@@ -148,6 +150,38 @@ export function completionsByDate(tasks: readonly StatTask[]): Map<string, numbe
 }
 
 /**
+ * Whether a task is attributed to a day **because it lives in that day's own
+ * daily note**, as opposed to having been completed there while living elsewhere.
+ */
+export function isFromOwnDayNote(task: StatTask): boolean {
+	if (task.noteGranularity !== 'day' || task.noteDate === null) return false;
+	return task.noteDate === task.effectiveDate;
+}
+
+/**
+ * Of the completions of each day, how many came from **another note**.
+ *
+ * This exists to answer a question the plain count keeps provoking: "my daily note
+ * has four open tasks and nothing done, so why does this day say three completed?"
+ * Because a day counts the work that closed that day wherever it lives — a task
+ * ticked in a project note is dated by the completion log and lands here. That is
+ * the right measure for a productivity heatmap and the wrong one to compare against
+ * a single note, so the figure that resolves the contradiction is offered alongside
+ * it rather than left to be deduced.
+ */
+export function completionsElsewhereByDate(tasks: readonly StatTask[]): Map<string, number> {
+	const out = new Map<string, number>();
+	for (const task of tasks) {
+		if (!task.isTask || !task.isCompleted) continue;
+		if (!isDayPrecise(task) || isFromOwnDayNote(task)) continue;
+		const date = task.effectiveDate;
+		if (date === null) continue;
+		out.set(date, (out.get(date) ?? 0) + 1);
+	}
+	return out;
+}
+
+/**
  * Consecutive active days ending today. A day with nothing done does not break
  * the streak until it is over: if today is still empty the count starts at
  * yesterday, the same forgiveness contribution graphs use.
@@ -265,7 +299,13 @@ export function computeStats(
  * `changed` event, and by the clock rolling past midnight.
  */
 export class StatsCache {
-	private cached: { stats: TaskStats; counts: Map<string, number>; today: string } | null = null;
+	private cached: {
+		stats: TaskStats;
+		counts: Map<string, number>;
+		/** Of those counts, the ones that came from another note. */
+		elsewhere: Map<string, number>;
+		today: string;
+	} | null = null;
 
 	/**
 	 * A plain field rather than a parameter property: `node --test` strips types
@@ -281,12 +321,17 @@ export class StatsCache {
 		this.cached = null;
 	}
 
-	get(): { stats: TaskStats; counts: Map<string, number> } {
+	get(): { stats: TaskStats; counts: Map<string, number>; elsewhere: Map<string, number> } {
 		const { tasks, options } = this.source();
 		if (this.cached !== null && this.cached.today === options.today) return this.cached;
 		const counts = completionsByDate(tasks);
 		const stats = computeStats(tasks, options, counts);
-		this.cached = { stats, counts, today: options.today };
+		this.cached = {
+			stats,
+			counts,
+			elsewhere: completionsElsewhereByDate(tasks),
+			today: options.today,
+		};
 		return this.cached;
 	}
 }

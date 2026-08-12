@@ -38,7 +38,7 @@ const MONTHS_SHOWN = 12;
 const DEFAULT_DENSITY = 8;
 
 /** Index changes arrive per keystroke pause; one repaint per burst is plenty. */
-const RENDER_DEBOUNCE_MS = 250;
+const RENDER_DEBOUNCE_MS = 120;
 
 export class HeatmapView extends ItemView {
 	private focusedDate: string | null = null;
@@ -100,7 +100,7 @@ export class HeatmapView extends ItemView {
 		contentEl.empty();
 		contentEl.addClass('simple-tasks-heatmap');
 
-		const { stats, counts } = this.plugin.stats.get();
+		const { stats, counts, elsewhere } = this.plugin.stats.get();
 		const locale = moment.localeData();
 		const calendar = buildHeatmapCalendar({
 			endDate: moment().format('YYYY-MM-DD'),
@@ -114,7 +114,7 @@ export class HeatmapView extends ItemView {
 			calendar,
 			weekdayNames: rotate(locale.weekdaysMin(), locale.firstDayOfWeek()),
 			monthNames: locale.monthsShort(),
-			describe: describeDay,
+			describe: (day) => describeDay(day, elsewhere.get(day.date) ?? 0),
 			focusedDate: this.focusedDate,
 			onFocusDate: (date) => {
 				this.focusedDate = date;
@@ -244,10 +244,18 @@ function renderTopTags(panel: HTMLElement, stats: TaskStats): void {
 	}
 }
 
-function describeDay(day: HeatmapDay): string {
+/**
+ * A cell's tooltip. `elsewhere` is how many of the day's completions were closed
+ * in a note other than that day's own, which is said out loud rather than left to
+ * be deduced: a day counts the work that closed in it wherever it lives, and
+ * comparing that figure against one open daily note is what makes a correct number
+ * look wrong.
+ */
+function describeDay(day: HeatmapDay, elsewhere: number): string {
 	const date = moment(day.date, 'YYYY-MM-DD').format('LL');
 	if (day.count === 0) return t('heatmap.dayEmpty', { date });
-	return tCount('heatmap.dayCount', day.count, { date });
+	const total = tCount('heatmap.dayCount', day.count, { date });
+	return elsewhere > 0 ? `${total} · ${tCount('heatmap.dayElsewhere', elsewhere)}` : total;
 }
 
 /** Moves the week-start weekday to the front of a Sunday-first list. */

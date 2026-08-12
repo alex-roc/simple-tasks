@@ -48,7 +48,7 @@ import { TagSuggestModal } from '../modals/tag-modal.ts';
 export const AGENDA_VIEW_TYPE = 'simple-tasks-agenda';
 
 /** Index changes arrive per keystroke pause; one repaint per burst is plenty. */
-const RENDER_DEBOUNCE_MS = 250;
+const RENDER_DEBOUNCE_MS = 120;
 
 const GROUPINGS: readonly AgendaGrouping[] = ['note', 'project', 'tag', 'status', 'none'];
 
@@ -143,6 +143,7 @@ export class AgendaView extends ItemView {
 			plugin: this.plugin,
 			prefix: 'simple-tasks-agenda',
 			draggable: true,
+			selectable: true,
 			showSource: () => this.state.grouping !== 'note',
 			onChanged: () => {
 				this.scheduleRender();
@@ -184,6 +185,9 @@ export class AgendaView extends ItemView {
 		contentEl.addClass('simple-tasks-agenda');
 
 		const tasks = this.collect();
+		// Before a single row exists: a painted row that this render is not going to
+		// draw — completed away, filtered out, moved — leaves the selection here.
+		this.rows?.retainSelection(tasks);
 		this.renderToolbar(contentEl, tasks);
 
 		if (tasks.length === 0) {

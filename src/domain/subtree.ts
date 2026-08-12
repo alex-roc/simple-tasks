@@ -275,6 +275,51 @@ function clampLevel(level: number): number {
 }
 
 /* ------------------------------------------------------------------ *
+ * Moving several tasks at once
+ * ------------------------------------------------------------------ */
+
+/** The part of a task {@link planBulkMove} reads. */
+export interface MovableTask {
+	path: string;
+	line: number;
+	/** Lines of every ancestor list item, from the index. */
+	ancestorLines: readonly number[];
+}
+
+/**
+ * The tasks a bulk move should actually move, in the order to move them.
+ *
+ * Two decisions, both of which stop a multi-selection from mangling a note:
+ *
+ * 1. **A task selected together with one of its ancestors is dropped.** Moving
+ *    the ancestor takes the whole subtree with it, so the descendant no longer
+ *    exists where it was; trying to move it afterwards would either find nothing
+ *    (a notice about a task that did move) or, worse, find the same text at the
+ *    destination and move it a second time.
+ * 2. **Within a note, the last task goes first.** Every move re-locates its task
+ *    in the content it is about to write, so a stale line is survivable — but
+ *    cutting from the bottom up means the lines above never shift at all, which
+ *    keeps the *index's* view of the note (its other list items, used to find
+ *    where a subtree ends) correct for every remaining task in the batch.
+ *
+ * Notes are grouped so the descending order is per note rather than global,
+ * which is the same thing when tasks come from several notes and clearer to read.
+ */
+export function planBulkMove<T extends MovableTask>(tasks: readonly T[]): T[] {
+	const linesByPath = new Map<string, Set<number>>();
+	for (const task of tasks) {
+		const lines = linesByPath.get(task.path) ?? new Set<number>();
+		lines.add(task.line);
+		linesByPath.set(task.path, lines);
+	}
+	const roots = tasks.filter((task) => {
+		const lines = linesByPath.get(task.path);
+		return !task.ancestorLines.some((line) => lines?.has(line) === true);
+	});
+	return roots.sort((a, b) => (a.path === b.path ? b.line - a.line : a.path < b.path ? -1 : 1));
+}
+
+/* ------------------------------------------------------------------ *
  * Relocating a task after the note moved under us
  * ------------------------------------------------------------------ */
 

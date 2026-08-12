@@ -88,55 +88,6 @@ settings:
         max: 12
         step: 1
         format: px
-    -
-        id: simple-tasks-burst
-        title: Completion burst
-        type: heading
-        level: 1
-        collapsed: true
-    -
-        id: st-burst-color
-        title: Burst color
-        description: Color of the particles thrown when a task is completed.
-        type: variable-select
-        default: var(--color-accent)
-        options:
-            -
-                label: Accent
-                value: var(--color-accent)
-            -
-                label: Green
-                value: var(--color-green)
-            -
-                label: Yellow
-                value: var(--color-yellow)
-            -
-                label: Orange
-                value: var(--color-orange)
-            -
-                label: Pink
-                value: var(--color-pink)
-    -
-        id: st-burst-distance
-        title: Burst reach
-        description: How far the particles travel, in pixels.
-        type: variable-number-slider
-        default: 48
-        min: 16
-        max: 120
-        step: 4
-        format: px
-    -
-        id: st-burst-size
-        title: Particle size
-        description: Diameter of one particle, in pixels.
-        type: variable-number-slider
-        default: 6
-        min: 2
-        max: 14
-        step: 1
-        format: px
-
 */
 
 /*
@@ -149,9 +100,6 @@ body {
 	--st-heatmap-cell-gap: 3px;
 	--st-heatmap-density: 8;
 	--st-heatmap-radius: 2px;
-	--st-burst-color: var(--color-accent);
-	--st-burst-distance: 48px;
-	--st-burst-size: 6px;
 }
 
 /*
@@ -353,38 +301,47 @@ body.is-mobile .simple-tasks-bases {
 
 /* ------------------------------------------------------------------ *
  * Stats panel
+ *
+ * The grid is the view and this panel is a caption to it. Cards, because a figure
+ * in a box reads as a figure worth glancing at — but **small** cards: the first
+ * version used `--font-ui-large` numbers in `--size-4-2` boxes and took more room
+ * than the year of activity it was describing. Roughly half the height, same
+ * vocabulary.
+ *
+ * (It spent a version with no boxes at all, which saved the room and lost the
+ * glanceability. This is the middle, and it is where it should stay.)
  * ------------------------------------------------------------------ */
 
 .simple-tasks-stats {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-4-2);
-	flex: 1 1 var(--size-4-18);
-	min-width: var(--size-4-18);
+	gap: var(--size-2-3);
+	flex: 1 1 var(--size-4-16);
+	min-width: var(--size-4-16);
 }
 
 .simple-tasks-stats-level {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-2-2);
-	padding: var(--size-4-2);
+	gap: var(--size-2-1);
+	padding: var(--size-2-2);
 	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
+	border-radius: var(--radius-s);
 	background-color: var(--background-secondary);
 }
 
 .simple-tasks-stats-level-name {
 	font-weight: var(--font-semibold);
-	font-size: var(--font-ui-medium);
+	font-size: var(--font-ui-smaller);
 }
 
 .simple-tasks-stats-level-xp {
 	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	font-size: var(--font-smallest);
 }
 
 .simple-tasks-stats-bar {
-	height: var(--size-2-2);
+	height: 4px;
 	border-radius: var(--radius-s);
 	background-color: var(--background-modifier-border);
 	overflow: hidden;
@@ -397,27 +354,49 @@ body.is-mobile .simple-tasks-bases {
 	background-color: var(--st-heatmap-color);
 }
 
+/*
+ * Six figures, and each one has to be **readable**.
+ *
+ * The columns are wide enough for the labels rather than as many as fit: at a
+ * 48 px minimum, six tiles crowded onto one row and every label was cut to
+ * `This …`, `Curr…`, `Per a…` — six boxes that said nothing. A 7.5rem floor gives
+ * three columns in a normal sidebar and two rows of them, one column when the
+ * panel is dragged narrow, and the label is allowed to wrap onto a second line
+ * instead of being truncated. A figure whose name is elided is not a figure.
+ */
 .simple-tasks-stats-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(var(--size-4-16), 1fr));
-	gap: var(--size-2-3);
+	grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+	gap: var(--size-2-2);
 }
 
 .simple-tasks-stats-tile {
-	padding: var(--size-4-2);
+	min-width: 0;
+	padding: var(--size-2-1) var(--size-2-2);
 	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
+	border-radius: var(--radius-s);
+	line-height: 1.25;
 }
 
 .simple-tasks-stats-value {
-	font-size: var(--font-ui-large);
+	font-size: var(--font-ui-small);
 	font-weight: var(--font-semibold);
-	line-height: 1.2;
+	line-height: 1.25;
+	font-variant-numeric: tabular-nums;
+	/* `4 days` must not break across lines while its label is allowed to. */
+	white-space: nowrap;
 }
 
 .simple-tasks-stats-label {
 	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	font-size: var(--font-smallest);
+	/* Two lines at most, so a long label cannot make one tile taller than the
+	   rest of its row. Everything the panel shows fits in two. */
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+	overflow-wrap: anywhere;
 }
 
 .simple-tasks-stats-footer {
@@ -428,12 +407,12 @@ body.is-mobile .simple-tasks-bases {
 
 .simple-tasks-stats-note {
 	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	font-size: var(--font-smallest);
 }
 
 .simple-tasks-stats-subhead {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	font-size: var(--font-smallest);
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 }
@@ -448,10 +427,10 @@ body.is-mobile .simple-tasks-bases {
 	display: inline-flex;
 	align-items: baseline;
 	gap: var(--size-2-1);
-	padding: var(--size-2-1) var(--size-2-3);
+	padding: 0 var(--size-2-1);
 	border-radius: var(--radius-s);
 	background-color: var(--background-modifier-hover);
-	font-size: var(--font-ui-smaller);
+	font-size: var(--font-smallest);
 }
 
 .simple-tasks-stats-tag-name {
@@ -594,6 +573,17 @@ body.is-mobile .simple-tasks-bases {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	word-break: break-all;
+}
+
+/*
+ * The same line when the popover is acting on a painted selection, where it says
+ * how many tasks that is. Accent-coloured because it is not a location any more
+ * but a warning about scope: every button below is about to write to all of them.
+ */
+.simple-tasks-popover-subtitle.is-selection {
+	color: var(--text-accent);
+	font-weight: var(--font-semibold);
+	word-break: normal;
 }
 
 .simple-tasks-popover-row {
@@ -769,6 +759,88 @@ body.is-mobile .simple-tasks-bases {
 	font-size: var(--font-ui-small);
 }
 
+/* ------------------------------------------------------------------ *
+ * Selection bar
+ *
+ * Visible only while rows are being selected, which is also the only sign that a
+ * plain click now toggles. Sticky rather than in the flow: the list it acts on is
+ * what scrolls, and a bar that scrolled away with it would leave the selection
+ * with no way to act on it.
+ * ------------------------------------------------------------------ */
+
+.simple-tasks-agenda-selection {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-1) var(--size-2-2);
+	position: sticky;
+	inset-block-start: 0;
+	z-index: 1;
+	padding: var(--size-2-1) var(--size-2-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	box-shadow: 0 0 0 1px var(--background-modifier-border);
+}
+
+/* Nothing at all when not selecting: the flex gap of the agenda would otherwise
+   leave a stripe of padding above the list. */
+.simple-tasks-agenda-selection.is-empty {
+	display: none;
+}
+
+.simple-tasks-agenda-selection-count {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+.simple-tasks-agenda-selection-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-1);
+	min-width: 0;
+	margin-inline-start: auto;
+}
+
+.simple-tasks-agenda-selection-button {
+	all: unset;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-2-1);
+	min-width: var(--input-height);
+	min-height: var(--input-height);
+	padding: 0 var(--size-2-2);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+}
+
+.simple-tasks-agenda-selection-button:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.simple-tasks-agenda-selection-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* A destination with nothing selected is disabled rather than hidden, so the bar
+   does not reshape itself under the pointer as rows are ticked. */
+.simple-tasks-agenda-selection-button:disabled {
+	cursor: default;
+	opacity: 0.45;
+}
+
+.simple-tasks-agenda-selection-button:disabled:hover {
+	background-color: transparent;
+	color: var(--text-muted);
+}
+
 .simple-tasks-agenda-body {
 	display: flex;
 	flex-direction: column;
@@ -877,6 +949,22 @@ button.simple-tasks-agenda-group-name:focus-visible {
 .simple-tasks-agenda-row.is-dragging {
 	opacity: 0.5;
 	cursor: grabbing;
+}
+
+/*
+ * A row that is part of the selection. Marked with the accent on the leading
+ * edge and a tinted background rather than the full accent fill a list selection
+ * usually gets: the row's own content — the status symbol, the priority emoji,
+ * the tags — carries colour of its own, and painting over it would cost more
+ * information than the selection adds.
+ */
+.simple-tasks-agenda-row.is-selected {
+	background-color: color-mix(in srgb, var(--color-accent) 14%, transparent);
+	box-shadow: inset 2px 0 0 0 var(--color-accent);
+}
+
+.simple-tasks-agenda-row.is-selected:hover {
+	background-color: color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
 /* An ancestor shown only to give the task its place in the outline. */
@@ -1031,79 +1119,6 @@ button.simple-tasks-agenda-group-name:focus-visible {
 	padding-inline-start: calc(var(--st-detail-depth, 0) * var(--size-4-3));
 	color: var(--text-faint);
 	overflow-wrap: anywhere;
-}
-
-/* ------------------------------------------------------------------ *
- * Completion burst
- *
- * A ~600 ms particle burst at the point the completion was triggered. No
- * dependency, no canvas: a handful of absolutely positioned divs, each one
- * given its own direction, delay and size through custom properties by
- * `ui/celebrate.ts`, and all animated by the single keyframe below.
- *
- * The host is removed by a timer, so nothing here relies on `animation-fill-mode`
- * to keep the DOM clean.
- * ------------------------------------------------------------------ */
-
-.simple-tasks-burst {
-	position: fixed;
-	inset-block-start: var(--st-burst-y, 50%);
-	inset-inline-start: var(--st-burst-x, 50%);
-	z-index: var(--layer-notice);
-	width: 0;
-	height: 0;
-	/* An overlay that swallowed clicks would break the very button that fired it. */
-	pointer-events: none;
-	contain: layout style;
-}
-
-.simple-tasks-burst-particle {
-	position: absolute;
-	inset-block-start: calc(var(--st-burst-size) / -2);
-	inset-inline-start: calc(var(--st-burst-size) / -2);
-	width: var(--st-burst-size);
-	height: var(--st-burst-size);
-	border-radius: var(--radius-l);
-	background-color: var(--st-burst-color);
-	/* Only transform and opacity animate, so the burst stays on the compositor. */
-	will-change: transform, opacity;
-	animation: simple-tasks-burst 600ms var(--st-burst-delay, 0ms) ease-out both;
-}
-
-@keyframes simple-tasks-burst {
-	0% {
-		transform: translate3d(0, 0, 0) scale(0.2);
-		opacity: 0;
-	}
-
-	20% {
-		opacity: 1;
-	}
-
-	100% {
-		transform: translate3d(
-				calc(var(--st-burst-dx, 0) * var(--st-burst-distance)),
-				calc(var(--st-burst-dy, 0) * var(--st-burst-distance)),
-				0
-			)
-			scale(var(--st-burst-scale, 1));
-		opacity: 0;
-	}
-}
-
-/*
- * `ui/celebrate.ts` already refuses to create the nodes when the user asked for
- * reduced motion, so this is the backstop for a preference that changes while a
- * burst is in flight — and the guarantee a reader of the stylesheet can check.
- */
-@media (prefers-reduced-motion: reduce) {
-	.simple-tasks-burst {
-		display: none;
-	}
-
-	.simple-tasks-burst-particle {
-		animation: none;
-	}
 }
 
 /* ------------------------------------------------------------------ *

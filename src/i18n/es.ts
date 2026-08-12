@@ -22,7 +22,7 @@ const es: Partial<Translations> = {
 	'command.agendaToday': 'Abrir la agenda de hoy',
 	'command.cycleStatus': 'Cambiar el estado de la tarea',
 	'command.taskActions': 'Mostrar las acciones de la tarea',
-	'command.moveToTomorrow': 'Mover la tarea a mañana',
+	'command.moveToTomorrow': 'Mover la tarea al día siguiente',
 	'command.setDueDate': 'Poner la fecha límite de la tarea',
 	'command.showInCalendar': 'Mostrar las tareas en el calendario',
 	'ribbon.heatmap': 'Abrir el mapa de calor de tareas',
@@ -40,6 +40,8 @@ const es: Partial<Translations> = {
 	'heatmap.dayEmpty': 'Nada completado el {date}',
 	'heatmap.dayCount_one': '{count} tarea completada el {date}',
 	'heatmap.dayCount_other': '{count} tareas completadas el {date}',
+	'heatmap.dayElsewhere_one': '{count} de ellas cerrada en otra nota',
+	'heatmap.dayElsewhere_other': '{count} de ellas cerradas en otras notas',
 
 	/* ---------------------------------------------------------------- calendar */
 	'calendar.sourceName': 'Simple Tasks',
@@ -47,6 +49,8 @@ const es: Partial<Translations> = {
 	'calendar.completedCount_other': '{count} tareas completadas',
 	'calendar.openCount_one': '{count} tarea pendiente',
 	'calendar.openCount_other': '{count} tareas pendientes',
+	'calendar.elsewhereCount_one': '{count} de ellas cerrada en otra nota',
+	'calendar.elsewhereCount_other': '{count} de ellas cerradas en otras notas',
 	'calendar.menu.showDay': 'Ver las tareas de este día',
 	'calendar.menu.showPeriod': 'Ver las tareas del {date}',
 	'calendar.missing.title': 'Calendar Plus no está instalado',
@@ -93,6 +97,8 @@ const es: Partial<Translations> = {
 	'agenda.groupProgress': '{completed} completadas de {total}',
 	'agenda.detailCount_one': '{count} detalle',
 	'agenda.detailCount_other': '{count} detalles',
+	'agenda.selectedCount_one': '{count} seleccionada',
+	'agenda.selectedCount_other': '{count} seleccionadas',
 	'agenda.taskActions': 'Acciones de {task}',
 	'agenda.setStatus': 'Cambiar el estado de {task}',
 	'agenda.openNote': 'Abrir la nota {note}',
@@ -147,12 +153,12 @@ const es: Partial<Translations> = {
 	'popover.setStatus': 'Poner el estado en {name}',
 	'popover.setPriority': 'Poner la prioridad en {name}',
 	'popover.clearPriority': 'Quitar la prioridad',
-	'popover.moveToToday': 'Mover a hoy',
-	'popover.moveToTomorrow': 'Mover a mañana',
+	'popover.moveToToday': 'Mover a hoy ({date})',
+	'popover.moveToTomorrow': 'Mover al día siguiente al de la tarea ({date})',
 	'popover.moveToDate': 'Mover a otra fecha…',
 	'popover.moveToNote': 'Mover a una nota…',
-	'popover.dueToday': 'Poner la fecha límite en hoy',
-	'popover.dueTomorrow': 'Poner la fecha límite en mañana',
+	'popover.dueToday': 'Poner la fecha límite en hoy ({date})',
+	'popover.dueTomorrow': 'Poner la fecha límite en mañana ({date})',
 	'popover.dueDate': 'Poner otra fecha límite…',
 	'popover.dueClear': 'Quitar la fecha límite',
 	'popover.addTag': 'Añadir una etiqueta…',
@@ -191,6 +197,11 @@ const es: Partial<Translations> = {
 	'action.moved': 'Se movieron {count} a {path}.',
 	'action.movedLines_one': '{count} línea',
 	'action.movedLines_other': '{count} líneas',
+	'action.movedTasks': 'Se movieron {count} a {path}.',
+	'action.taskCount_one': '{count} tarea',
+	'action.taskCount_other': '{count} tareas',
+	'action.movedSkipped': '{count} se quedaron donde estaban.',
+	'action.movedNone': 'No se pudo mover ninguna de las tareas seleccionadas.',
 	'action.moveFailed': 'No se pudo completar el movimiento, así que la nota quedó intacta.',
 	'action.sameDestination': 'La tarea ya está ahí.',
 
@@ -240,9 +251,6 @@ const es: Partial<Translations> = {
 	'settings.hoverPopover.name': 'Popover al pasar el ratón en el editor',
 	'settings.hoverPopover.desc':
 		'Mostrar las acciones de la tarea cuando el puntero se detiene sobre una línea de tarea en una nota. Desactívalo para usar solo el comando.',
-	'settings.celebrate.name': 'Celebrar las tareas completadas',
-	'settings.celebrate.desc':
-		'Lanzar una breve ráfaga de partículas al terminar una tarea. Una tarea padre con subtareas pendientes no cierra nada, así que no recibe ráfaga. Nada se mueve si el sistema pide movimiento reducido.',
 	'settings.heatmap.name': 'Vista de mapa de calor',
 	'settings.heatmap.desc':
 		'Lo que esa vista muestra junto a la rejilla del calendario. Todo esto viene desactivado salvo el nivel, así que la vista se abre como mapa de calor y nada más.',
@@ -273,6 +281,11 @@ const es: Partial<Translations> = {
 	'settings.calendar.connected': 'Conectado: el calendario está mostrando tus tareas.',
 	'settings.calendar.missing':
 		'No está instalado. Todo lo demás de Simple Tasks funciona sin él.',
+	'settings.calendarDisplay.name': 'Cómo muestra el calendario las tareas',
+	'settings.calendarDisplay.desc':
+		'La intensidad de fondo sombrea cada día según cuánto completaste en él, sin gastar espacio de la celda. Los puntos marcan las completadas y las pendientes como hacía el Calendar original. En ambos casos, al pasar el ratón por un día salen las dos cifras.',
+	'settings.calendarDisplay.intensity': 'Intensidad de fondo',
+	'settings.calendarDisplay.dots': 'Puntos',
 };
 
 export default es;

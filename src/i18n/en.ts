@@ -30,7 +30,7 @@ const en = {
 	'command.agendaToday': "Open today's agenda",
 	'command.cycleStatus': 'Cycle task status',
 	'command.taskActions': 'Show task actions',
-	'command.moveToTomorrow': 'Move task to tomorrow',
+	'command.moveToTomorrow': 'Move task to the next day',
 	'command.setDueDate': 'Set task due date',
 	'command.showInCalendar': 'Show tasks on the calendar',
 	'ribbon.heatmap': 'Open task heatmap',
@@ -48,6 +48,8 @@ const en = {
 	'heatmap.dayEmpty': 'Nothing completed on {date}',
 	'heatmap.dayCount_one': '{count} task completed on {date}',
 	'heatmap.dayCount_other': '{count} tasks completed on {date}',
+	'heatmap.dayElsewhere_one': '{count} of them closed in another note',
+	'heatmap.dayElsewhere_other': '{count} of them closed in other notes',
 
 	/* ---------------------------------------------------------------- calendar */
 	'calendar.sourceName': 'Simple Tasks',
@@ -55,6 +57,8 @@ const en = {
 	'calendar.completedCount_other': '{count} tasks completed',
 	'calendar.openCount_one': '{count} task open',
 	'calendar.openCount_other': '{count} tasks open',
+	'calendar.elsewhereCount_one': '{count} of them closed in another note',
+	'calendar.elsewhereCount_other': '{count} of them closed in other notes',
 	'calendar.menu.showDay': 'Show the tasks of this day',
 	'calendar.menu.showPeriod': 'Show the tasks of {date}',
 	'calendar.missing.title': 'Calendar Plus is not installed',
@@ -100,6 +104,8 @@ const en = {
 	'agenda.groupProgress': '{completed} of {total} completed',
 	'agenda.detailCount_one': '{count} detail',
 	'agenda.detailCount_other': '{count} details',
+	'agenda.selectedCount_one': '{count} selected',
+	'agenda.selectedCount_other': '{count} selected',
 	'agenda.taskActions': 'Actions for {task}',
 	'agenda.setStatus': 'Change the status of {task}',
 	'agenda.openNote': 'Open the note {note}',
@@ -153,12 +159,12 @@ const en = {
 	'popover.setStatus': 'Set status to {name}',
 	'popover.setPriority': 'Set priority to {name}',
 	'popover.clearPriority': 'Clear the priority',
-	'popover.moveToToday': 'Move to today',
-	'popover.moveToTomorrow': 'Move to tomorrow',
+	'popover.moveToToday': 'Move to today ({date})',
+	'popover.moveToTomorrow': 'Move to the day after this task’s own day ({date})',
 	'popover.moveToDate': 'Move to another date…',
 	'popover.moveToNote': 'Move to a note…',
-	'popover.dueToday': 'Set the due date to today',
-	'popover.dueTomorrow': 'Set the due date to tomorrow',
+	'popover.dueToday': 'Set the due date to today ({date})',
+	'popover.dueTomorrow': 'Set the due date to tomorrow ({date})',
 	'popover.dueDate': 'Set another due date…',
 	'popover.dueClear': 'Remove the due date',
 	'popover.addTag': 'Add a tag…',
@@ -197,6 +203,11 @@ const en = {
 	'action.moved': 'Moved {count} to {path}.',
 	'action.movedLines_one': '{count} line',
 	'action.movedLines_other': '{count} lines',
+	'action.movedTasks': 'Moved {count} to {path}.',
+	'action.taskCount_one': '{count} task',
+	'action.taskCount_other': '{count} tasks',
+	'action.movedSkipped': '{count} were left where they were.',
+	'action.movedNone': 'None of the selected tasks could be moved.',
 	'action.moveFailed': 'The move could not be completed, so the note was left unchanged.',
 	'action.sameDestination': 'The task is already there.',
 
@@ -245,9 +256,6 @@ const en = {
 	'settings.hoverPopover.name': 'Popover on hover in the editor',
 	'settings.hoverPopover.desc':
 		'Show the task actions when the pointer rests on a task line in a note. Turn it off to use the command instead.',
-	'settings.celebrate.name': 'Celebrate completions',
-	'settings.celebrate.desc':
-		'Throw a short burst of particles when a task is finished. A parent task whose subtasks are still open closes nothing, so it gets no burst. Nothing moves when your system asks for reduced motion.',
 	'settings.heatmap.name': 'Heatmap view',
 	'settings.heatmap.desc':
 		'What that view shows next to the calendar grid. Everything here is off by default except the level, so the view opens as a heatmap and nothing else.',
@@ -277,6 +285,11 @@ const en = {
 	'settings.calendar.status': 'Status',
 	'settings.calendar.connected': 'Connected: the calendar is showing your tasks.',
 	'settings.calendar.missing': 'Not installed. Everything else in Simple Tasks works without it.',
+	'settings.calendarDisplay.name': 'How the calendar shows tasks',
+	'settings.calendarDisplay.desc':
+		'The shading tints each day by how much you completed in it, which costs the cell no room. The dots mark completed and still-open tasks instead, one per task. Hovering a day gives both figures either way.',
+	'settings.calendarDisplay.intensity': 'Background intensity',
+	'settings.calendarDisplay.dots': 'Dots',
 };
 
 /** Every key the plugin can ask for. Other locales fill a subset of it. */

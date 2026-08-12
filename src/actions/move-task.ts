@@ -4,6 +4,7 @@ import {
 	cutRange,
 	insertBlock,
 	locateTaskLine,
+	planBulkMove,
 	reindentBlock,
 	subtreeRange,
 } from '../domain/subtree.ts';
@@ -79,16 +80,32 @@ export interface MoveResult {
 	lines: number;
 }
 
+/**
+ * How a move reports itself.
+ *
+ * A single move announces what it did and explains what it could not do. A move
+ * that is one of many says nothing at all: a selection of eight tasks produced
+ * eight stacked notices, which is not feedback but an obstruction. The batch in
+ * {@link moveTasks} announces the whole thing once instead.
+ */
+export interface MoveOptions {
+	silent?: boolean;
+}
+
 /** Moves a task and its subtree. Returns `null` when nothing was written. */
 export async function moveTask(
 	plugin: SimpleTasksPlugin,
 	task: Task,
-	destination: MoveDestination
+	destination: MoveDestination,
+	options: MoveOptions = {}
 ): Promise<MoveResult | null> {
 	const { vault } = plugin.app;
+	const notify = (key: Parameters<typeof t>[0], params?: Record<string, string>): void => {
+		if (options.silent !== true) new Notice(t(key, params));
+	};
 	const source = vault.getFileByPath(task.path);
 	if (!(source instanceof TFile)) {
-		new Notice(t('action.noFile', { path: task.path }));
+		notify('action.noFile', { path: task.path });
 		return null;
 	}
 
@@ -101,7 +118,7 @@ export async function moveTask(
 	const sameFile = target.path === source.path;
 
 	if (sameFile) {
-		return moveWithinNote(plugin, task, target, { heading, headingLevel });
+		return moveWithinNote(plugin, task, target, { heading, headingLevel }, options);
 	}
 
 	// Planned before anything is written: it reads the index, which still
@@ -111,7 +128,7 @@ export async function moveTask(
 	// Step 2: cut, atomically, from whatever the note says right now.
 	const cut = await cutSubtree(plugin, source, task);
 	if (cut === null) {
-		new Notice(t('action.notFound'));
+		notify('action.notFound');
 		return null;
 	}
 
@@ -119,10 +136,12 @@ export async function moveTask(
 	try {
 		const result = await insertIntoNote(plugin, target, cut.block, { heading, headingLevel });
 		applyCompletionTransfer(plugin, completions);
-		announce(result);
+		if (options.silent !== true) announce(result);
 		return result;
 	} catch (error) {
 		await restoreSubtree(plugin, source, cut);
+		// Not silenced even in a batch: a rollback is the one thing the user has to
+		// hear about, whether it happened on its own or as one of eight.
 		new Notice(t('action.moveFailed'));
 		throw error;
 	}
@@ -133,23 +152,96 @@ export async function moveTaskToDate(
 	plugin: SimpleTasksPlugin,
 	task: Task,
 	date: string,
-	granularity: PeriodicGranularity = 'day'
+	granularity: PeriodicGranularity = 'day',
+	options: MoveOptions = {}
 ): Promise<MoveResult | null> {
 	const path = plugin.periodicNotePath(granularity, date);
 	if (path === null) {
-		new Notice(t('action.notPeriodic'));
+		if (options.silent !== true) new Notice(t('action.notPeriodic'));
 		return null;
 	}
 	if (path === task.path) {
-		new Notice(t('action.sameDestination'));
+		if (options.silent !== true) new Notice(t('action.sameDestination'));
 		return null;
 	}
-	return moveTask(plugin, task, {
-		path,
-		heading: emptyToNull(plugin.settings.moveHeading),
-		date,
-		granularity,
-	});
+	return moveTask(
+		plugin,
+		task,
+		{
+			path,
+			heading: emptyToNull(plugin.settings.moveHeading),
+			date,
+			granularity,
+		},
+		options
+	);
+}
+
+/* ------------------------------------------------------------------ *
+ * Several tasks at once
+ * ------------------------------------------------------------------ */
+
+export interface BulkMoveResult {
+	/** Tasks whose subtree really landed in the destination. */
+	moved: number;
+	/**
+	 * Tasks the batch did not move. Either they were already there, or they were
+	 * dropped as descendants of another selected task, or the note changed under
+	 * the batch and the line could no longer be identified — see
+	 * `domain/subtree.ts:locateTaskLine()`, which refuses to guess.
+	 */
+	skipped: number;
+}
+
+/**
+ * Moves a whole selection to one destination.
+ *
+ * **Sequentially, never in parallel.** Every move is a read-modify-write of a
+ * note, and two of them running at once on the same note is a lost update; the
+ * loop is what makes the batch as safe as the single move it is built from. The
+ * order comes from `planBulkMove`, which also drops a task selected together
+ * with one of its ancestors — see that function for both reasons.
+ *
+ * A failure is per task, not per batch: one task whose line can no longer be
+ * identified is counted as skipped and the rest still move. A rollback — the one
+ * case where a note was left in an unexpected state — still throws, because at
+ * that point the batch has stopped being something the user can reason about.
+ */
+export async function moveTasks(
+	plugin: SimpleTasksPlugin,
+	tasks: readonly Task[],
+	destination: MoveDestination
+): Promise<BulkMoveResult> {
+	const plan = planBulkMove(tasks);
+	let moved = 0;
+	for (const task of plan) {
+		const result = await moveTask(plugin, task, destination, { silent: true });
+		if (result !== null) moved += 1;
+	}
+	announceBulk(moved, tasks.length, destination.path);
+	return { moved, skipped: tasks.length - moved };
+}
+
+/** {@link moveTasks} into the periodic note of a date. */
+export async function moveTasksToDate(
+	plugin: SimpleTasksPlugin,
+	tasks: readonly Task[],
+	date: string,
+	granularity: PeriodicGranularity = 'day'
+): Promise<BulkMoveResult> {
+	const path = plugin.periodicNotePath(granularity, date);
+	if (path === null) {
+		new Notice(t('action.notPeriodic'));
+		return { moved: 0, skipped: tasks.length };
+	}
+	const plan = planBulkMove(tasks);
+	let moved = 0;
+	for (const task of plan) {
+		const result = await moveTaskToDate(plugin, task, date, granularity, { silent: true });
+		if (result !== null) moved += 1;
+	}
+	announceBulk(moved, tasks.length, path);
+	return { moved, skipped: tasks.length - moved };
 }
 
 /* ------------------------------------------------------------------ *
@@ -212,7 +304,8 @@ async function moveWithinNote(
 	plugin: SimpleTasksPlugin,
 	task: Task,
 	file: TFile,
-	placement: Placement
+	placement: Placement,
+	options: MoveOptions
 ): Promise<MoveResult | null> {
 	let result: MoveResult | null = null;
 	await plugin.app.vault.process(file, (data) => {
@@ -226,10 +319,10 @@ async function moveWithinNote(
 		return inserted.lines.join('\n');
 	});
 	if (result === null) {
-		new Notice(t('action.notFound'));
+		if (options.silent !== true) new Notice(t('action.notFound'));
 		return null;
 	}
-	announce(result);
+	if (options.silent !== true) announce(result);
 	return result;
 }
 
@@ -362,5 +455,25 @@ function announce(result: MoveResult): void {
 			count: tCount('action.movedLines', result.lines),
 			path: result.path,
 		})
+	);
+}
+
+/**
+ * One notice for a whole batch, which says how many of the selection actually
+ * moved. The difference is the interesting part: a silent "3 moved" out of five
+ * selected is how a user ends up believing a task went somewhere it did not.
+ */
+function announceBulk(moved: number, selected: number, path: string): void {
+	if (moved === 0) {
+		new Notice(t('action.movedNone'));
+		return;
+	}
+	const skipped = selected - moved;
+	const message = t('action.movedTasks', {
+		count: tCount('action.taskCount', moved),
+		path,
+	});
+	new Notice(
+		skipped > 0 ? `${message} ${t('action.movedSkipped', { count: skipped })}` : message
 	);
 }

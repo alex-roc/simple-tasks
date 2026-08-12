@@ -28,23 +28,22 @@ import type { FileEntry } from './task-index.ts';
 /** Files handled per tick of the initial scan, so the UI never freezes. */
 const SCAN_BATCH = 40;
 
-/** Metadata changes are bursty (one per keystroke pause); coalesce them. */
-const CHANGE_DEBOUNCE_MS = 400;
+/**
+ * Metadata changes are bursty (one per keystroke pause); coalesce them.
+ *
+ * Kept short on purpose. Everything downstream — the heatmap, the agenda, the
+ * calendar's shading — only learns about a ticked checkbox when this flush lands,
+ * and Obsidian's own delay in front of it (the editor buffer has to reach disk
+ * before `metadataCache` fires at all) is already the larger half of the wait. A
+ * full reindex of one note is a parse of one file; there is nothing to save here.
+ */
+const CHANGE_DEBOUNCE_MS = 200;
 
 /** What the completion log needs from its host. */
 export interface CompletionLogHost {
 	log: CompletionLog;
 	/** Called after the log gained or moved an entry, so it can be persisted. */
 	onChanged: () => void;
-	/**
-	 * Tasks observed moving from open to completed in the notes of one flush,
-	 * fired **after** the index has been updated so the receiver can read the
-	 * new subtree. This is the same open→completed diff the log is fed from —
-	 * there is deliberately no second detector — and it is what lets a checkbox
-	 * ticked directly in the editor be celebrated, which no route through
-	 * `actions/` ever sees.
-	 */
-	onCompleted?: (tasks: readonly Task[]) => void;
 }
 
 export class TaskIndexer {
@@ -60,20 +59,12 @@ export class TaskIndexer {
 	 * the index knew a moment ago.
 	 *
 	 * It covers **every** task, not only the ones the completion log can be
-	 * responsible for. The log still records just its own — a task with a `✅` on
-	 * the line or one living in a periodic note already has a better date — but
-	 * the diff itself is also what tells the celebration a checkbox was ticked in
-	 * the editor, and a daily note is exactly where that happens most.
+	 * responsible for: `detectCompletions` needs the whole picture of a note to
+	 * tell a real transition from a line that merely turned up already completed.
+	 * The log then records just its own — a task with a `✅` on the line, or one
+	 * living in a periodic note, already has a better date.
 	 */
 	private readonly snapshot = new Map<string, Map<string, boolean>>();
-
-	/**
-	 * Transitions seen while indexing the notes of the current flush, held until
-	 * the index has actually been updated. `trackCompletions` runs *before*
-	 * `index.setFile`, so firing from there would hand the receiver the previous
-	 * state of the note.
-	 */
-	private readonly completed: Task[] = [];
 
 	/**
 	 * True while the snapshot is being filled from scratch. Nothing is recorded
@@ -132,7 +123,6 @@ export class TaskIndexer {
 		const started = performance.now();
 		this.index.clear();
 		this.snapshot.clear();
-		this.completed.length = 0;
 		this.seeding = true;
 		const files = this.app.vault.getMarkdownFiles();
 		const touched: string[] = [];
@@ -228,7 +218,6 @@ export class TaskIndexer {
 
 	private async processPending(): Promise<void> {
 		const touched: string[] = [];
-		this.completed.length = 0;
 		for (const path of this.removed) {
 			if (this.index.removeFile(path)) touched.push(path);
 		}
@@ -246,9 +235,6 @@ export class TaskIndexer {
 		this.pending.clear();
 
 		if (touched.length > 0) this.index.notifyChanged(touched);
-		// After the index is current, so the receiver sees the note as it now is.
-		if (this.completed.length > 0) this.completions.onCompleted?.([...this.completed]);
-		this.completed.length = 0;
 	}
 
 	private isExcluded(path: string): boolean {
@@ -290,8 +276,8 @@ export class TaskIndexer {
 
 	/**
 	 * Diffs the note against the previous snapshot, records the completions the
-	 * markdown does not date by itself, hands those dates back to the tasks as
-	 * their `effectiveDate`, and collects the transitions worth celebrating.
+	 * markdown does not date by itself, and hands those dates back to the tasks as
+	 * their `effectiveDate`.
 	 *
 	 * The **diff** covers every task; the **log** does not. Only tasks the log can
 	 * be responsible for are recorded: one with a `✅` date on the line, or one
@@ -327,13 +313,11 @@ export class TaskIndexer {
 			// completed is usually an old one whose text was edited into a new key,
 			// so it only fills a gap — it never moves a date that already exists.
 			for (const key of transitioned) {
-				const task = owner.get(key);
-				if (dateableByLog(task)) changed = log.record(key, today, true) || changed;
-				if (task !== undefined) this.completed.push(task);
+				if (dateableByLog(owner.get(key))) changed = log.record(key, today, true) || changed;
 			}
-			// `appeared` is not celebrated, on purpose. A task that simply turns up
-			// already completed is a pasted line, a synced note or an old completion
-			// under a new key after an edit — never a checkbox somebody just ticked.
+			// `appeared` never overwrites a date: a task that simply turns up already
+			// completed is a pasted line, a synced note, or an old completion under a
+			// new key after an edit — not something that happened today.
 			for (const key of appeared) {
 				if (dateableByLog(owner.get(key))) changed = log.record(key, today, false) || changed;
 			}

@@ -1,12 +1,17 @@
-import { Component, setIcon, setTooltip } from 'obsidian';
+import { Component, moment, setIcon, setTooltip } from 'obsidian';
 import { cycleTaskStatus, setTaskStatus } from '../../actions/cycle-status.ts';
 import { addTaskTag, removeTaskTag, setTaskPriority } from '../../actions/edit-task.ts';
-import { moveTask, moveTaskToDate } from '../../actions/move-task.ts';
+import { moveTask, moveTaskToDate, moveTasks, moveTasksToDate } from '../../actions/move-task.ts';
 import { openTaskAt } from '../../actions/open-task.ts';
-import { relativeDate, rescheduleTask } from '../../actions/reschedule.ts';
+import {
+	relativeDate,
+	relativeToTask,
+	rescheduleTask,
+	taskAnchorDate,
+} from '../../actions/reschedule.ts';
 import { PRIORITY_EMOJI } from '../../domain/parse-line.ts';
 import type { Task, TaskPriority } from '../../domain/task.ts';
-import { t } from '../../i18n/index.ts';
+import { t, tCount } from '../../i18n/index.ts';
 import type SimpleTasksPlugin from '../../main.ts';
 import { renderScope } from '../components/render-scope.ts';
 import { DatePickerModal } from '../modals/date-modal.ts';
@@ -55,6 +60,17 @@ export interface TaskPopoverOptions {
 	plugin: SimpleTasksPlugin;
 	task: Task;
 	/**
+	 * The tasks this popover acts on, when it was opened over a **selection** of
+	 * several rows. `task` is still the one under the pointer — it is what the
+	 * title, the current status and the tag list are read from — but every write
+	 * applies to all of these.
+	 *
+	 * Absent, or holding a single task, means the ordinary one-task popover. There
+	 * is no second component and no second set of buttons: a bulk action is the
+	 * same action with more targets.
+	 */
+	selection?: readonly Task[];
+	/**
 	 * Element focus returns to when the popover closes. Defaults to whatever had
 	 * focus at the moment it opened, which is the right answer for the triggers
 	 * that have no element to name.
@@ -96,6 +112,20 @@ export class TaskPopover extends Component {
 	 * pile up a dead closure per button per action taken.
 	 */
 	private buttonScope: Component | null = null;
+
+	/**
+	 * Every task a write applies to: the selection when there is one, and the
+	 * hovered task alone otherwise. Read on each use rather than stored expanded,
+	 * so it cannot drift from {@link isMulti}.
+	 */
+	private get targets(): readonly Task[] {
+		const { selection } = this.options;
+		return selection !== undefined && selection.length > 1 ? selection : [this.task];
+	}
+
+	private get isMulti(): boolean {
+		return this.targets.length > 1;
+	}
 
 	private constructor(container: HTMLElement, options: TaskPopoverOptions, floating: boolean) {
 		super();
@@ -235,9 +265,17 @@ export class TaskPopover extends Component {
 			cls: 'simple-tasks-popover-title',
 			text: this.task.cleanText === '' ? this.task.path : this.task.cleanText,
 		});
+		// With a selection the subtitle says how many tasks are about to be written
+		// to, which is the one thing that must not be discoverable only by trying it.
+		// Without one it says where the task is, which is what a single-task popover
+		// is asked most often.
 		header.createDiv({
-			cls: 'simple-tasks-popover-subtitle',
-			text: `${this.task.path}:${String(this.task.line + 1)}`,
+			cls: this.isMulti
+				? 'simple-tasks-popover-subtitle is-selection'
+				: 'simple-tasks-popover-subtitle',
+			text: this.isMulti
+				? tCount('agenda.selectedCount', this.targets.length)
+				: `${this.task.path}:${String(this.task.line + 1)}`,
 		});
 
 		this.renderStatuses(root);
@@ -304,7 +342,7 @@ export class TaskPopover extends Component {
 					pressed: status.symbol === this.task.status,
 				},
 				() => {
-					void this.run(() => setTaskStatus(this.plugin, this.task, status.symbol), {
+					void this.run((task) => setTaskStatus(this.plugin, task, status.symbol), {
 						status: status.symbol,
 					});
 				}
@@ -324,7 +362,7 @@ export class TaskPopover extends Component {
 					pressed: this.task.priority === priority,
 				},
 				() => {
-					void this.run(() => setTaskPriority(this.plugin, this.task, priority), { priority });
+					void this.run((task) => setTaskPriority(this.plugin, task, priority), { priority });
 				}
 			);
 		}
@@ -336,33 +374,61 @@ export class TaskPopover extends Component {
 				pressed: this.task.priority === null,
 			},
 			() => {
-				void this.run(() => setTaskPriority(this.plugin, this.task, null), { priority: null });
+				void this.run((task) => setTaskPriority(this.plugin, task, null), { priority: null });
 			}
 		);
 	}
 
+	/**
+	 * The move row. Its two shortcuts are measured from the **task's own day**,
+	 * not from the clock — see `actions/reschedule.ts:taskAnchorDate()`.
+	 *
+	 * When that day is not today the second button stops saying "tomorrow" and
+	 * says the date it will actually use ("13 Aug"). A button labelled "tomorrow"
+	 * that files a task under a day in the past is the bug this replaces; showing
+	 * the resolved date makes the rule visible without a tooltip and without
+	 * asking anyone to read the documentation.
+	 */
 	private renderMove(root: HTMLElement): void {
 		const items = this.row(root, t('popover.moveTo'));
-		this.button(items, { text: t('common.today'), label: t('popover.moveToToday') }, () => {
-			void this.relocate(() => moveTaskToDate(this.plugin, this.task, relativeDate(0)));
-		});
-		this.button(items, { text: t('common.tomorrow'), label: t('popover.moveToTomorrow') }, () => {
-			void this.relocate(() => moveTaskToDate(this.plugin, this.task, relativeDate(1)));
-		});
+		const today = relativeDate(0);
+		const next = relativeToTask(this.task, 1);
+		this.button(
+			items,
+			{ text: t('common.today'), label: t('popover.moveToToday', { date: today }) },
+			() => {
+				this.moveToDate(today);
+			}
+		);
+		this.button(
+			items,
+			{
+				text:
+					taskAnchorDate(this.task) === today
+						? t('common.tomorrow')
+						: moment(next, 'YYYY-MM-DD').format('D MMM'),
+				label: t('popover.moveToTomorrow', { date: next }),
+			},
+			() => {
+				this.moveToDate(next);
+			}
+		);
 		this.button(items, { icon: 'calendar', label: t('popover.moveToDate') }, () => {
-			const task = this.task;
+			// The targets are read before the modal opens: by the time it answers, this
+			// popover is gone and with it the selection it was acting on.
+			const targets = this.targets;
 			this.close();
 			new DatePickerModal(this.plugin.app, null, (date) => {
-				void moveTaskToDate(this.plugin, task, date);
+				void this.sendToDate(targets, date);
 			}).open();
 		});
 		this.button(items, { icon: 'file-input', label: t('popover.moveToNote') }, () => {
-			const task = this.task;
+			const targets = this.targets;
 			this.close();
 			pickNoteTarget(
 				this.plugin.app,
 				(target) => {
-					void moveTask(this.plugin, task, {
+					void this.sendToNote(targets, {
 						path: target.file.path,
 						heading: target.heading,
 						headingLevel: target.headingLevel,
@@ -380,28 +446,38 @@ export class TaskPopover extends Component {
 		if (current !== undefined) {
 			items.createSpan({ cls: 'simple-tasks-popover-value', text: current });
 		}
-		this.button(items, { text: t('common.today'), label: t('popover.dueToday') }, () => {
-			void this.run(() => rescheduleTask(this.plugin, this.task, relativeDate(0)), {
-				dates: { ...this.task.dates, [field]: relativeDate(0) },
-			});
-		});
-		this.button(items, { text: t('common.tomorrow'), label: t('popover.dueTomorrow') }, () => {
-			void this.run(() => rescheduleTask(this.plugin, this.task, relativeDate(1)), {
-				dates: { ...this.task.dates, [field]: relativeDate(1) },
-			});
-		});
+		// Measured from the clock, unlike the move row above: a due date is a promise
+		// about the real calendar, not a position in the outline.
+		this.button(
+			items,
+			{ text: t('common.today'), label: t('popover.dueToday', { date: relativeDate(0) }) },
+			() => {
+				void this.run((task) => rescheduleTask(this.plugin, task, relativeDate(0)), {
+					dates: { ...this.task.dates, [field]: relativeDate(0) },
+				});
+			}
+		);
+		this.button(
+			items,
+			{ text: t('common.tomorrow'), label: t('popover.dueTomorrow', { date: relativeDate(1) }) },
+			() => {
+				void this.run((task) => rescheduleTask(this.plugin, task, relativeDate(1)), {
+					dates: { ...this.task.dates, [field]: relativeDate(1) },
+				});
+			}
+		);
 		this.button(items, { icon: 'calendar-clock', label: t('popover.dueDate') }, () => {
-			const task = this.task;
+			const targets = this.targets;
 			this.close();
 			new DatePickerModal(this.plugin.app, current ?? null, (date) => {
-				void rescheduleTask(this.plugin, task, date);
+				void this.each(targets, (task) => rescheduleTask(this.plugin, task, date));
 			}).open();
 		});
 		if (current !== undefined) {
 			this.button(items, { icon: 'calendar-x', label: t('popover.dueClear') }, () => {
 				const dates = { ...this.task.dates };
 				delete dates[field];
-				void this.run(() => rescheduleTask(this.plugin, this.task, null), { dates });
+				void this.run((task) => rescheduleTask(this.plugin, task, null), { dates });
 			});
 		}
 	}
@@ -414,7 +490,7 @@ export class TaskPopover extends Component {
 		for (const tag of this.task.ownTags) {
 			const remove = { text: tag, icon: 'x', iconTrailing: true, label: t('popover.removeTag', { tag }) };
 			this.button(items, remove, () => {
-				void this.run(() => removeTaskTag(this.plugin, this.task, tag), {
+				void this.run((task) => removeTaskTag(this.plugin, task, tag), {
 					ownTags: this.task.ownTags.filter((existing) => existing !== tag),
 				});
 			});
@@ -425,7 +501,7 @@ export class TaskPopover extends Component {
 				this.plugin.index,
 				{ exclude: this.task.ownTags },
 				(tag) => {
-					void this.run(() => addTaskTag(this.plugin, this.task, tag), {
+					void this.run((task) => addTaskTag(this.plugin, task, tag), {
 						ownTags: [...this.task.ownTags, tag],
 					});
 				}
@@ -441,7 +517,7 @@ export class TaskPopover extends Component {
 			void openTaskAt(this.plugin.app, task.path, task.line);
 		});
 		this.button(footer, { icon: 'check-check', label: t('command.cycleStatus') }, () => {
-			void this.run(() => cycleTaskStatus(this.plugin, this.task), {});
+			void this.run((task) => cycleTaskStatus(this.plugin, task), {});
 		});
 		this.button(footer, { icon: 'x', label: t('popover.close') }, () => {
 			this.close();
@@ -451,21 +527,62 @@ export class TaskPopover extends Component {
 	/* -------------------------------------------------- action plumbing */
 
 	/**
-	 * Runs a write and repaints. The optimistic patch is what keeps the popover
-	 * from showing the pre-write state for the 400 ms the index takes to notice.
+	 * Runs a write over every target and repaints.
+	 *
+	 * The optimistic patch is what keeps the popover from showing the pre-write
+	 * state for the 400 ms the index takes to notice, and it is applied to the
+	 * hovered task only — the others are not on display, and their rows repaint on
+	 * the index's own event.
 	 */
-	private async run(action: () => Promise<boolean>, patch: Partial<Task>): Promise<void> {
-		const ok = await action();
+	private async run(
+		action: (task: Task) => Promise<boolean>,
+		patch: Partial<Task>
+	): Promise<void> {
+		const ok = await this.each(this.targets, action);
 		if (!ok) return;
 		this.task = { ...this.task, ...patch };
-		this.options.onChanged?.();
 		if (!this.closed) this.render();
 	}
 
-	/** Runs a write that moves the task elsewhere, after which there is nothing to show. */
-	private async relocate(action: () => Promise<unknown>): Promise<void> {
+	/**
+	 * One write per target, **sequentially**: each is a read-modify-write of a note,
+	 * and two at once on the same note is a lost update. Returns whether anything
+	 * was written, and notifies the host once for the batch rather than per task.
+	 */
+	private async each(
+		targets: readonly Task[],
+		action: (task: Task) => Promise<boolean>
+	): Promise<boolean> {
+		let wrote = false;
+		for (const task of targets) {
+			if (await action(task)) wrote = true;
+		}
+		if (wrote) this.options.onChanged?.();
+		return wrote;
+	}
+
+	/**
+	 * Moves the targets into the periodic note of a date. Closes first: after this
+	 * there is nothing left under the pointer to point at.
+	 */
+	private moveToDate(date: string): void {
+		const targets = this.targets;
 		this.close();
-		await action();
+		void this.sendToDate(targets, date);
+	}
+
+	private async sendToDate(targets: readonly Task[], date: string): Promise<void> {
+		if (targets.length > 1) await moveTasksToDate(this.plugin, targets, date);
+		else if (targets[0] !== undefined) await moveTaskToDate(this.plugin, targets[0], date);
+		this.options.onChanged?.();
+	}
+
+	private async sendToNote(
+		targets: readonly Task[],
+		destination: { path: string; heading: string | null; headingLevel?: number }
+	): Promise<void> {
+		if (targets.length > 1) await moveTasks(this.plugin, targets, destination);
+		else if (targets[0] !== undefined) await moveTask(this.plugin, targets[0], destination);
 		this.options.onChanged?.();
 	}
 

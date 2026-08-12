@@ -5,7 +5,7 @@ import { addTaskTag, removeTaskTag, setTaskPriority } from './actions/edit-task.
 import { openPeriodicNote } from './actions/ensure-note.ts';
 import { moveTask, moveTaskToDate } from './actions/move-task.ts';
 import type { MoveDestination } from './actions/move-task.ts';
-import { relativeDate, rescheduleTask } from './actions/reschedule.ts';
+import { relativeToTask, rescheduleTask } from './actions/reschedule.ts';
 import type { ReschedulableField } from './actions/reschedule.ts';
 import { registerCliCommands } from './cli/index.ts';
 import type { PeriodicGranularity, PeriodicLevel } from './domain/periodic.ts';
@@ -18,7 +18,6 @@ import { INDEX_CHANGED, TaskIndex } from './index/task-index.ts';
 import { t } from './i18n/index.ts';
 import { DEFAULT_SETTINGS, SimpleTasksSettingTab, normalizeSettings } from './settings.ts';
 import type { SimpleTasksSettings } from './settings.ts';
-import { CompletionCelebrations } from './ui/celebrate.ts';
 import { CalendarPlusMissingModal } from './ui/modals/calendar-plus-modal.ts';
 import { DatePickerModal } from './ui/modals/date-modal.ts';
 import { taskHoverExtension } from './ui/popover/editor-hover.ts';
@@ -98,14 +97,6 @@ export default class SimpleTasksPlugin extends Plugin {
 	 */
 	readonly calendar = new CalendarPlusIntegration(this);
 
-	/**
-	 * The completion burst. A child component, so its document listeners and any
-	 * overlay still on screen go away with the plugin. Public because
-	 * `actions/cycle-status.ts` — the one place that knows a task was finished —
-	 * is what triggers it.
-	 */
-	readonly celebration = new CompletionCelebrations(this);
-
 	private indexer: TaskIndexer | null = null;
 
 	private readonly persistSoon = debounce(() => {
@@ -120,13 +111,6 @@ export default class SimpleTasksPlugin extends Plugin {
 			onChanged: () => {
 				this.persistSoon();
 			},
-			// The indexer's open→completed diff is the only thing that sees a
-			// checkbox ticked directly in a note, which is how most tasks actually
-			// get finished. It reuses the detection the completion log already
-			// needed rather than watching the editor for a second time.
-			onCompleted: (tasks) => {
-				this.celebration.onObservedCompletions(tasks);
-			},
 		});
 		this.addSettingTab(new SimpleTasksSettingTab(this.app, this));
 
@@ -138,15 +122,20 @@ export default class SimpleTasksPlugin extends Plugin {
 			})
 		);
 
-		this.addChild(this.celebration);
-
 		this.registerView(HEATMAP_VIEW_TYPE, (leaf) => new HeatmapView(leaf, this));
 		this.registerView(AGENDA_VIEW_TYPE, (leaf) => new AgendaView(leaf, this));
 		this.registerTaskViews();
 
 		// The same popover the views open on hover, over the editor. It resolves the
 		// task from the index, so it agrees with everything else by construction.
-		this.registerEditorExtension(taskHoverExtension(this));
+		//
+		// **Desktop only.** A touch WebView synthesizes pointer and mouse events from
+		// a tap, so on a phone `hoverTooltip` fired from the very tap that was aimed
+		// at the ⋮ button — one popover from the hover and one from the button, both
+		// on screen at once, and a popover appearing over the text whenever a line
+		// was touched at all. There is no hover on a phone to be replaced: the button
+		// below is the whole route there, and it is the only one.
+		if (!Platform.isMobile) this.registerEditorExtension(taskHoverExtension(this));
 
 		// And the same popover again, reached by a button on the task line the cursor
 		// is on. Mobile only: there is no hover to replace it there, and on the
@@ -300,8 +289,10 @@ export default class SimpleTasksPlugin extends Plugin {
 		this.addTaskCommand('cycle-status', t('command.cycleStatus'), (task) => {
 			void cycleTaskStatus(this, task);
 		});
+		// The day after the task's own day, not after today: same rule as the
+		// popover's move row, from `actions/reschedule.ts:taskAnchorDate()`.
 		this.addTaskCommand('move-to-tomorrow', t('command.moveToTomorrow'), (task) => {
-			void moveTaskToDate(this, task, relativeDate(1));
+			void moveTaskToDate(this, task, relativeToTask(task, 1));
 		});
 		this.addTaskCommand('set-due-date', t('command.setDueDate'), (task) => {
 			new DatePickerModal(this.app, task.dates[this.settings.rescheduleField] ?? null, (date) => {

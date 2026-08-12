@@ -50,7 +50,7 @@ import { TaskRowList, noteName } from '../components/task-row-list.ts';
 export const BASES_VIEW_TYPE = 'simple-tasks-tasks';
 
 /** Index changes arrive per keystroke pause; one repaint per burst is plenty. */
-const RENDER_DEBOUNCE_MS = 250;
+const RENDER_DEBOUNCE_MS = 120;
 
 const GROUPINGS: readonly AgendaGrouping[] = ['note', 'project', 'tag', 'status'];
 

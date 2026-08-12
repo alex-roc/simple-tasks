@@ -26,9 +26,9 @@ import { rewriteTaskLine } from './edit-task.ts';
  *
  * Every route into a completed status ends here: the agenda checkbox, the
  * popover in the views, the popover in the editor, the Bases view and the
- * `Cycle task status` command. That makes this the single sensible place to
- * fire the completion burst — see `ui/celebrate.ts`. Hooking it into the four
- * call sites instead would guarantee the fifth one forgets.
+ * `Cycle task status` command. Nothing is hooked onto that at the moment — the
+ * completion animation that used to be was removed — but it is the seam to use if
+ * anything ever needs to know, rather than the five call sites.
  */
 
 /** Sets an explicit status symbol. */
@@ -41,12 +41,8 @@ export async function setTaskStatus(
 	// would silently turn a section heading into something the stats count.
 	if (!task.isTask) return false;
 	const completed = resolveStatus(plugin.settings.statuses, symbol).isCompleted;
-	// Resolved from the symbol rather than read off `task.isCompleted`: the
-	// popover hands back an optimistically patched copy whose `status` is current
-	// but whose derived flags are not.
-	const wasCompleted = resolveStatus(plugin.settings.statuses, task.status).isCompleted;
 	const today = moment().format('YYYY-MM-DD');
-	const written = await rewriteTaskLine(plugin, task, (line) => {
+	return rewriteTaskLine(plugin, task, (line) => {
 		const next = withStatus(line, symbol);
 		if (line.dates.done === undefined) return next;
 		const dates = { ...next.dates };
@@ -54,11 +50,6 @@ export async function setTaskStatus(
 		else delete dates.done;
 		return { ...next, dates };
 	});
-
-	// Only a real transition, and only after the write landed: re-ticking a done
-	// task is not an achievement, and neither is a write that was refused.
-	if (written && completed && !wasCompleted) plugin.celebration.onCompleted(task);
-	return written;
 }
 
 /** Moves the task to the `nextSymbol` its current status declares. */

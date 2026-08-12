@@ -5,6 +5,7 @@ import {
 	bestStreak,
 	buildHeatmapCalendar,
 	completionsByDate,
+	completionsElsewhereByDate,
 	computeStats,
 	currentStreak,
 	isDayPrecise,
@@ -22,12 +23,50 @@ function done(date: string, extra: Partial<StatTask> = {}): StatTask {
 		isCompleted: true,
 		effectiveDate: date,
 		noteGranularity: 'day',
+		// The default is a task living in the daily note of its own date, which is
+		// what makes `completionsElsewhereByDate` count nothing unless a test says so.
+		noteDate: date,
 		dates: {},
 		priority: null,
 		tags: [],
 		...extra,
 	};
 }
+
+describe('completionsElsewhereByDate', () => {
+	it('counts nothing when every completion is in its own day note', () => {
+		const counts = completionsElsewhereByDate([done('2026-08-12'), done('2026-08-12')]);
+		assert.equal(counts.get('2026-08-12'), undefined);
+	});
+
+	it('counts a task completed in a project note, which the log dated', () => {
+		// The case that reads as a contradiction in the interface: the daily note has
+		// nothing done, and the day still says three completed.
+		const counts = completionsElsewhereByDate([
+			done('2026-08-12'),
+			done('2026-08-12', { noteGranularity: null, noteDate: null }),
+			done('2026-08-12', { noteGranularity: null, noteDate: null }),
+		]);
+		assert.equal(counts.get('2026-08-12'), 2);
+	});
+
+	it('counts a task carried into another day by its own done date', () => {
+		// Written in the 11th's note, ticked with a ✅ of the 12th: it counts on the
+		// 12th, and it is not the 12th's own note that holds it.
+		const counts = completionsElsewhereByDate([
+			done('2026-08-12', { noteDate: '2026-08-11', dates: { done: '2026-08-12' } }),
+		]);
+		assert.equal(counts.get('2026-08-12'), 1);
+	});
+
+	it('ignores what is not a completion and what has no day', () => {
+		const counts = completionsElsewhereByDate([
+			done('2026-08-12', { isCompleted: false, noteDate: null, noteGranularity: null }),
+			done('2026-08-12', { noteGranularity: 'month', noteDate: '2026-08-01' }),
+		]);
+		assert.equal(counts.size, 0);
+	});
+});
 
 describe('ISO arithmetic', () => {
 	it('crosses months, years and leap days', () => {

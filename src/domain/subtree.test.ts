@@ -9,6 +9,7 @@ import {
 	indentWidth,
 	insertBlock,
 	locateTaskLine,
+	planBulkMove,
 	reindentBlock,
 	subtreeRange,
 } from './subtree.ts';
@@ -348,5 +349,57 @@ describe('locateTaskLine', () => {
 	it('matches on the round-trippable text, ignoring status and metadata', () => {
 		const withMeta = note('- [x] Revisar el informe 📅 2026-01-01');
 		assert.equal(locateTaskLine(withMeta, 0, 'Revisar el informe'), 0);
+	});
+});
+
+describe('planBulkMove', () => {
+	/** A task with only the fields the planner reads. */
+	function task(path: string, line: number, ancestorLines: number[] = []) {
+		return { path, line, ancestorLines };
+	}
+
+	it('keeps independent tasks and moves the last one of a note first', () => {
+		const plan = planBulkMove([task('A.md', 3), task('A.md', 9), task('A.md', 5)]);
+		assert.deepEqual(
+			plan.map((entry) => entry.line),
+			[9, 5, 3]
+		);
+	});
+
+	it('drops a task selected together with its ancestor', () => {
+		// The ancestor's move takes the child with it; moving the child afterwards
+		// would either find nothing or find it again at the destination.
+		const plan = planBulkMove([task('A.md', 4), task('A.md', 5, [4]), task('A.md', 6, [5, 4])]);
+		assert.deepEqual(
+			plan.map((entry) => entry.line),
+			[4]
+		);
+	});
+
+	it('keeps a descendant whose ancestor is not part of the selection', () => {
+		const plan = planBulkMove([task('A.md', 5, [4])]);
+		assert.deepEqual(
+			plan.map((entry) => entry.line),
+			[5]
+		);
+	});
+
+	it('only treats an ancestor of the same note as an ancestor', () => {
+		// Line numbers are meaningless across notes: a task on line 4 of another
+		// note must not swallow this one.
+		const plan = planBulkMove([task('A.md', 4), task('B.md', 5, [4])]);
+		assert.equal(plan.length, 2);
+	});
+
+	it('groups by note and stays deterministic', () => {
+		const plan = planBulkMove([task('B.md', 1), task('A.md', 2), task('B.md', 7), task('A.md', 8)]);
+		assert.deepEqual(
+			plan.map((entry) => `${entry.path}:${String(entry.line)}`),
+			['A.md:8', 'A.md:2', 'B.md:7', 'B.md:1']
+		);
+	});
+
+	it('answers an empty plan for an empty selection', () => {
+		assert.deepEqual(planBulkMove([]), []);
 	});
 });

@@ -40,3 +40,33 @@ export async function rescheduleTask(
 export function relativeDate(days: number): string {
 	return moment().add(days, 'days').format('YYYY-MM-DD');
 }
+
+/**
+ * The day a **move** is measured from: the date of the daily note the task lives
+ * in, or today for a task that lives anywhere else.
+ *
+ * This is what "tomorrow" means for a task, and it is deliberately not today.
+ * The gesture it exists for is reviewing a day that has passed: standing in
+ * yesterday's note and pushing an unfinished task to the next day has to land in
+ * today's note, not the day after today. Measuring from the clock skipped a day
+ * every time and quietly put the task where nobody was looking.
+ *
+ * Only the **daily** level anchors: a task in a weekly or monthly note has no
+ * day of its own — its `noteDate` is the first day of the period, and treating
+ * that as "its day" would send every task in a monthly note to the 2nd. Today is
+ * the honest answer there, and it is also the answer for project notes.
+ *
+ * A **due date**, by contrast, is measured from the clock, because it is a
+ * promise about the real calendar rather than a position in the outline. The two
+ * rows of the popover therefore resolve differently on purpose, and both show
+ * the date they resolved to.
+ */
+export function taskAnchorDate(task: Task): string {
+	const anchored = task.noteGranularity === 'day' && task.noteDate !== null;
+	return anchored && task.noteDate !== null ? task.noteDate : relativeDate(0);
+}
+
+/** `YYYY-MM-DD`, `days` after the task's own day. See {@link taskAnchorDate}. */
+export function relativeToTask(task: Task, days: number): string {
+	return moment(taskAnchorDate(task), 'YYYY-MM-DD').add(days, 'days').format('YYYY-MM-DD');
+}

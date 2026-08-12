@@ -33,8 +33,16 @@ export interface SimpleTasksSettings {
 	rescheduleField: ReschedulableField;
 	/** Whether hovering a task line in the editor opens the actions popover. */
 	editorHoverPopover: boolean;
-	/** Whether completing a task fires the particle burst. */
-	celebrateCompletions: boolean;
+	/**
+	 * How the Calendar Plus integration draws a period's tasks.
+	 *
+	 * `intensity` contributes the number of completions and lets the calendar
+	 * shade the cell, which is the default and costs the cell no room.
+	 * `dots` contributes the filled/hollow markers instead — which is the other
+	 * half of that plugin's contract, and what somebody used to the original
+	 * Calendar may prefer.
+	 */
+	calendarDisplay: CalendarDisplay;
 	/**
 	 * Which sections the heatmap view draws besides the grid itself.
 	 *
@@ -60,12 +68,15 @@ export const DEFAULT_SETTINGS: SimpleTasksSettings = {
 	moveHeading: '',
 	rescheduleField: 'due',
 	editorHoverPopover: true,
-	celebrateCompletions: true,
+	calendarDisplay: 'intensity',
 	heatmapShowLevel: true,
 	heatmapShowTiles: false,
 	heatmapShowSummary: false,
 	heatmapShowTopTags: false,
 };
+
+/** What Simple Tasks contributes to a Calendar Plus cell. */
+export type CalendarDisplay = 'intensity' | 'dots';
 
 const RESCHEDULE_FIELDS: readonly ReschedulableField[] = ['due', 'scheduled', 'start'];
 
@@ -98,7 +109,7 @@ export function normalizeSettings(raw: unknown): SimpleTasksSettings {
 			? merged.rescheduleField
 			: 'due',
 		editorHoverPopover: Boolean(merged.editorHoverPopover),
-		celebrateCompletions: Boolean(merged.celebrateCompletions),
+		calendarDisplay: merged.calendarDisplay === 'dots' ? 'dots' : 'intensity',
 		heatmapShowLevel: Boolean(merged.heatmapShowLevel),
 		heatmapShowTiles: Boolean(merged.heatmapShowTiles),
 		heatmapShowSummary: Boolean(merged.heatmapShowSummary),
@@ -331,15 +342,6 @@ export class SimpleTasksSettingTab extends PluginSettingTab {
 				})
 			);
 
-		new Setting(containerEl)
-			.setName(t('settings.celebrate.name'))
-			.setDesc(t('settings.celebrate.desc'))
-			.addToggle((toggle) =>
-				toggle.setValue(this.plugin.settings.celebrateCompletions).onChange(async (value) => {
-					this.plugin.settings.celebrateCompletions = value;
-					await this.save(false);
-				})
-			);
 	}
 
 	private renderIndexing(containerEl: HTMLElement): void {
@@ -399,12 +401,33 @@ export class SimpleTasksSettingTab extends PluginSettingTab {
 		const row = new Setting(containerEl)
 			.setName(t('settings.calendar.status'))
 			.setDesc(connected ? t('settings.calendar.connected') : t('settings.calendar.missing'));
-		if (connected) return;
-		row.addButton((button) =>
-			button.setButtonText(t('calendar.missing.install')).onClick(() => {
-				openCalendarPlusPage();
-			})
-		);
+		if (!connected) {
+			row.addButton((button) =>
+				button.setButtonText(t('calendar.missing.install')).onClick(() => {
+					openCalendarPlusPage();
+				})
+			);
+			// Nothing else is worth offering: a choice about how the calendar draws
+			// tasks, with no calendar, is a control that cannot be checked.
+			return;
+		}
+
+		new Setting(containerEl)
+			.setName(t('settings.calendarDisplay.name'))
+			.setDesc(t('settings.calendarDisplay.desc'))
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption('intensity', t('settings.calendarDisplay.intensity'))
+					.addOption('dots', t('settings.calendarDisplay.dots'))
+					.setValue(this.plugin.settings.calendarDisplay)
+					.onChange(async (value) => {
+						this.plugin.settings.calendarDisplay = value === 'dots' ? 'dots' : 'intensity';
+						await this.save(false);
+						// The calendar caches nothing of ours, but it will not repaint on
+						// its own for a setting it knows nothing about.
+						this.plugin.calendar.refresh();
+					})
+			);
 	}
 
 	private renderPeriodic(containerEl: HTMLElement): void {
