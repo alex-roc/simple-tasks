@@ -40,8 +40,6 @@ const es: Partial<Translations> = {
 	'heatmap.dayEmpty': 'Nada completado el {date}',
 	'heatmap.dayCount_one': '{count} tarea completada el {date}',
 	'heatmap.dayCount_other': '{count} tareas completadas el {date}',
-	'heatmap.dayElsewhere_one': '{count} de ellas cerrada en otra nota',
-	'heatmap.dayElsewhere_other': '{count} de ellas cerradas en otras notas',
 
 	/* ---------------------------------------------------------------- calendar */
 	'calendar.sourceName': 'Simple Tasks',
@@ -49,8 +47,6 @@ const es: Partial<Translations> = {
 	'calendar.completedCount_other': '{count} tareas completadas',
 	'calendar.openCount_one': '{count} tarea pendiente',
 	'calendar.openCount_other': '{count} tareas pendientes',
-	'calendar.elsewhereCount_one': '{count} de ellas cerrada en otra nota',
-	'calendar.elsewhereCount_other': '{count} de ellas cerradas en otras notas',
 	'calendar.menu.showDay': 'Ver las tareas de este día',
 	'calendar.menu.showPeriod': 'Ver las tareas del {date}',
 	'calendar.missing.title': 'Calendar Plus no está instalado',

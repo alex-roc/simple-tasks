@@ -24,8 +24,8 @@ import { TagSuggestModal } from '../modals/tag-modal.ts';
  *   span covers the day. The scope defaults to the daily note alone; widening it
  *   pulls in the week, month, quarter, semester and year notes, which is exactly
  *   what an outline-driven vault wants on a Monday morning.
- * - `byDate(date)` — the tasks *attributed* to the day: a `✅` on the line, the
- *   date of the containing periodic note, or the completion log.
+ * - `byDate(date)` — the tasks *attributed* to the day: a `✅` on the line, or the
+ *   date of the containing periodic note.
  * - the tasks whose line carries an explicit `due`, `scheduled` or `start` for
  *   that day, wherever they live.
  *

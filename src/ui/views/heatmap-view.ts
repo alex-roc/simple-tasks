@@ -100,7 +100,7 @@ export class HeatmapView extends ItemView {
 		contentEl.empty();
 		contentEl.addClass('simple-tasks-heatmap');
 
-		const { stats, counts, elsewhere } = this.plugin.stats.get();
+		const { stats, counts } = this.plugin.stats.get();
 		const locale = moment.localeData();
 		const calendar = buildHeatmapCalendar({
 			endDate: moment().format('YYYY-MM-DD'),
@@ -114,7 +114,7 @@ export class HeatmapView extends ItemView {
 			calendar,
 			weekdayNames: rotate(locale.weekdaysMin(), locale.firstDayOfWeek()),
 			monthNames: locale.monthsShort(),
-			describe: (day) => describeDay(day, elsewhere.get(day.date) ?? 0),
+			describe: describeDay,
 			focusedDate: this.focusedDate,
 			onFocusDate: (date) => {
 				this.focusedDate = date;
@@ -245,17 +245,13 @@ function renderTopTags(panel: HTMLElement, stats: TaskStats): void {
 }
 
 /**
- * A cell's tooltip. `elsewhere` is how many of the day's completions were closed
- * in a note other than that day's own, which is said out loud rather than left to
- * be deduced: a day counts the work that closed in it wherever it lives, and
- * comparing that figure against one open daily note is what makes a correct number
- * look wrong.
+ * A cell's tooltip. The count needs no footnote any more: a day is the tasks
+ * completed in that day's own note, which is what you see on opening it.
  */
-function describeDay(day: HeatmapDay, elsewhere: number): string {
+function describeDay(day: HeatmapDay): string {
 	const date = moment(day.date, 'YYYY-MM-DD').format('LL');
 	if (day.count === 0) return t('heatmap.dayEmpty', { date });
-	const total = tCount('heatmap.dayCount', day.count, { date });
-	return elsewhere > 0 ? `${total} · ${tCount('heatmap.dayElsewhere', elsewhere)}` : total;
+	return tCount('heatmap.dayCount', day.count, { date });
 }
 
 /** Moves the week-start weekday to the front of a Sunday-first list. */

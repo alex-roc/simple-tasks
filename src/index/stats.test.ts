@@ -4,27 +4,25 @@ import {
 	PRIORITY_XP,
 	bestStreak,
 	buildHeatmapCalendar,
+	completionDate,
 	completionsByDate,
-	completionsElsewhereByDate,
 	computeStats,
 	currentStreak,
-	isDayPrecise,
 	isoAddDays,
 	isoAddMonths,
 	levelFor,
 	levelOf,
+	ownDayDate,
 	startOfWeek,
 } from './stats.ts';
 import type { StatTask } from './stats.ts';
 
+/** A task completed in the daily note of `date`, the ordinary case. */
 function done(date: string, extra: Partial<StatTask> = {}): StatTask {
 	return {
 		isTask: true,
 		isCompleted: true,
-		effectiveDate: date,
 		noteGranularity: 'day',
-		// The default is a task living in the daily note of its own date, which is
-		// what makes `completionsElsewhereByDate` count nothing unless a test says so.
 		noteDate: date,
 		dates: {},
 		priority: null,
@@ -33,38 +31,72 @@ function done(date: string, extra: Partial<StatTask> = {}): StatTask {
 	};
 }
 
-describe('completionsElsewhereByDate', () => {
-	it('counts nothing when every completion is in its own day note', () => {
-		const counts = completionsElsewhereByDate([done('2026-08-12'), done('2026-08-12')]);
-		assert.equal(counts.get('2026-08-12'), undefined);
+/** A task in a note that is not periodic at all: a project note. */
+function inProject(extra: Partial<StatTask> = {}): StatTask {
+	return done('', { noteGranularity: null, noteDate: null, ...extra });
+}
+
+describe('completionDate', () => {
+	it("takes the day of the task's own daily note", () => {
+		assert.equal(completionDate(done('2026-08-12')), '2026-08-12');
 	});
 
-	it('counts a task completed in a project note, which the log dated', () => {
-		// The case that reads as a contradiction in the interface: the daily note has
-		// nothing done, and the day still says three completed.
-		const counts = completionsElsewhereByDate([
+	it('prefers a completion date written on the line', () => {
+		// Written in the 11th's note, ticked with a ✅ of the 12th.
+		const task = done('2026-08-11', { dates: { done: '2026-08-12' } });
+		assert.equal(completionDate(task), '2026-08-12');
+		assert.equal(completionDate(inProject({ dates: { done: '2025-03-04' } })), '2025-03-04');
+	});
+
+	it('gives a project note no day at all', () => {
+		// The regression this whole rule exists for. Such a task used to be dated by
+		// the day the plugin happened to observe it, so opening an old project note
+		// filed years of finished work onto that one day.
+		assert.equal(completionDate(inProject()), null);
+	});
+
+	it('gives a note coarser than a day no day either', () => {
+		assert.equal(completionDate(done('2026-08-01', { noteGranularity: 'month' })), null);
+		assert.equal(completionDate(done('2025-12-29', { noteGranularity: 'week' })), null);
+	});
+
+	it('is null for anything that is not a completed task', () => {
+		assert.equal(completionDate(done('2026-08-12', { isCompleted: false })), null);
+		assert.equal(completionDate(done('2026-08-12', { isTask: false })), null);
+	});
+});
+
+describe('ownDayDate', () => {
+	it('is the day of the note, whether the task is done or open', () => {
+		assert.equal(ownDayDate(done('2026-08-12', { isCompleted: false })), '2026-08-12');
+		assert.equal(ownDayDate(done('2026-08-12')), '2026-08-12');
+	});
+
+	it('is null outside a daily note, a ✅ on the line notwithstanding', () => {
+		assert.equal(ownDayDate(inProject({ dates: { done: '2025-03-04' } })), null);
+		assert.equal(ownDayDate(done('2026-08-01', { noteGranularity: 'month' })), null);
+	});
+});
+
+describe('completionsByDate', () => {
+	it('counts only what a day can be named for', () => {
+		const counts = completionsByDate([
 			done('2026-08-12'),
-			done('2026-08-12', { noteGranularity: null, noteDate: null }),
-			done('2026-08-12', { noteGranularity: null, noteDate: null }),
+			done('2026-08-12'),
+			done('2026-08-12', { isCompleted: false }),
+			inProject(),
+			done('2026-08-01', { noteGranularity: 'month' }),
 		]);
-		assert.equal(counts.get('2026-08-12'), 2);
+		assert.deepEqual([...counts], [['2026-08-12', 2]]);
 	});
 
-	it('counts a task carried into another day by its own done date', () => {
-		// Written in the 11th's note, ticked with a ✅ of the 12th: it counts on the
-		// 12th, and it is not the 12th's own note that holds it.
-		const counts = completionsElsewhereByDate([
-			done('2026-08-12', { noteDate: '2026-08-11', dates: { done: '2026-08-12' } }),
-		]);
-		assert.equal(counts.get('2026-08-12'), 1);
-	});
-
-	it('ignores what is not a completion and what has no day', () => {
-		const counts = completionsElsewhereByDate([
-			done('2026-08-12', { isCompleted: false, noteDate: null, noteGranularity: null }),
-			done('2026-08-12', { noteGranularity: 'month', noteDate: '2026-08-01' }),
-		]);
-		assert.equal(counts.size, 0);
+	it('keeps monthly notes from spiking the first of the month', () => {
+		const tasks = [
+			done('2026-01-01', { noteGranularity: 'month' }),
+			done('2026-01-01', { noteGranularity: 'month' }),
+			done('2026-01-01'),
+		];
+		assert.deepEqual([...completionsByDate(tasks)], [['2026-01-01', 1]]);
 	});
 });
 
@@ -84,31 +116,6 @@ describe('ISO arithmetic', () => {
 		// 2026-08-01 is a Saturday.
 		assert.equal(startOfWeek('2026-08-01', 1), '2026-07-27');
 		assert.equal(startOfWeek('2026-08-01', 0), '2026-07-26');
-	});
-});
-
-describe('day precision', () => {
-	it('accepts a date written on the line, a daily note and the completion log', () => {
-		assert.equal(isDayPrecise(done('2026-01-05', { noteGranularity: 'day' })), true);
-		assert.equal(isDayPrecise(done('2026-01-05', { noteGranularity: null })), true);
-		assert.equal(
-			isDayPrecise(done('2026-01-05', { noteGranularity: 'month', dates: { done: '2026-01-05' } })),
-			true
-		);
-	});
-
-	it('rejects a task dated only by its weekly or monthly note', () => {
-		assert.equal(isDayPrecise(done('2026-01-01', { noteGranularity: 'month' })), false);
-		assert.equal(isDayPrecise(done('2025-12-29', { noteGranularity: 'week' })), false);
-	});
-
-	it('keeps monthly notes from spiking the first of the month', () => {
-		const tasks = [
-			done('2026-01-01', { noteGranularity: 'month' }),
-			done('2026-01-01', { noteGranularity: 'month' }),
-			done('2026-01-01', { noteGranularity: 'day' }),
-		];
-		assert.deepEqual([...completionsByDate(tasks)], [['2026-01-01', 1]]);
 	});
 });
 

@@ -1,4 +1,4 @@
-import { TFile, TFolder, debounce, getAllTags, moment } from 'obsidian';
+import { TFile, TFolder, debounce, getAllTags } from 'obsidian';
 import type { App, CachedMetadata, ListItemCache, Plugin } from 'obsidian';
 import { parseLine } from '../domain/parse-line.ts';
 import {
@@ -12,8 +12,6 @@ import type { PeriodicConfig, PeriodicGranularity, PeriodicLevel } from '../doma
 import { resolveStatus } from '../domain/statuses.ts';
 import type { ParsedLine, Task } from '../domain/task.ts';
 import type { SimpleTasksSettings } from '../settings.ts';
-import { completionKeys, detectCompletions, isKeyUnder, remapKeyPath } from './completion-log.ts';
-import type { CompletionLog } from './completion-log.ts';
 import { TaskIndex } from './task-index.ts';
 import type { FileEntry } from './task-index.ts';
 
@@ -39,39 +37,12 @@ const SCAN_BATCH = 40;
  */
 const CHANGE_DEBOUNCE_MS = 200;
 
-/** What the completion log needs from its host. */
-export interface CompletionLogHost {
-	log: CompletionLog;
-	/** Called after the log gained or moved an entry, so it can be persisted. */
-	onChanged: () => void;
-}
-
 export class TaskIndexer {
 	private periodic: PeriodicConfig = emptyPeriodicConfig();
 	private templatePaths = new Set<string>();
 	private readonly pending = new Set<string>();
 	private readonly removed = new Set<string>();
 	private started = false;
-
-	/**
-	 * Last seen `key → isCompleted` per note. This is how a completion is
-	 * detected: not by watching the editor, but by diffing the note against what
-	 * the index knew a moment ago.
-	 *
-	 * It covers **every** task, not only the ones the completion log can be
-	 * responsible for: `detectCompletions` needs the whole picture of a note to
-	 * tell a real transition from a line that merely turned up already completed.
-	 * The log then records just its own — a task with a `✅` on the line, or one
-	 * living in a periodic note, already has a better date.
-	 */
-	private readonly snapshot = new Map<string, Map<string, boolean>>();
-
-	/**
-	 * True while the snapshot is being filled from scratch. Nothing is recorded
-	 * then: on a cold start every completed task looks like it just happened, and
-	 * the whole vault would be stamped with today's date.
-	 */
-	private seeding = false;
 
 	private readonly flush = debounce(
 		() => {
@@ -85,8 +56,7 @@ export class TaskIndexer {
 		private readonly app: App,
 		private readonly plugin: Plugin,
 		readonly index: TaskIndex,
-		private readonly settings: () => SimpleTasksSettings,
-		private readonly completions: CompletionLogHost
+		private readonly settings: () => SimpleTasksSettings
 	) {}
 
 	/**
@@ -122,20 +92,14 @@ export class TaskIndexer {
 	async rebuild(): Promise<void> {
 		const started = performance.now();
 		this.index.clear();
-		this.snapshot.clear();
-		this.seeding = true;
 		const files = this.app.vault.getMarkdownFiles();
 		const touched: string[] = [];
-		try {
-			for (let i = 0; i < files.length; i += 1) {
-				const file = files[i];
-				if (file === undefined) continue;
-				if (this.indexFile(file, await this.readIfNeeded(file))) touched.push(file.path);
-				// Yield to the event loop between batches: 500+ notes must not block paint.
-				if (i % SCAN_BATCH === SCAN_BATCH - 1) await nextTick();
-			}
-		} finally {
-			this.seeding = false;
+		for (let i = 0; i < files.length; i += 1) {
+			const file = files[i];
+			if (file === undefined) continue;
+			if (this.indexFile(file, await this.readIfNeeded(file))) touched.push(file.path);
+			// Yield to the event loop between batches: 500+ notes must not block paint.
+			if (i % SCAN_BATCH === SCAN_BATCH - 1) await nextTick();
 		}
 		this.index.setScanDuration(performance.now() - started);
 		this.index.notifyChanged(touched);
@@ -181,9 +145,6 @@ export class TaskIndexer {
 			this.app.vault.on('rename', (file, oldPath) => {
 				if (file instanceof TFolder) this.index.removeFolder(oldPath);
 				else this.removed.add(oldPath);
-				// Keys carry the note path, so a move has to be followed or the log
-				// silently forgets everything the note ever completed.
-				this.movePath(oldPath, file.path);
 				if (file instanceof TFile) this.pending.add(file.path);
 				this.flush();
 			})
@@ -192,28 +153,9 @@ export class TaskIndexer {
 			this.app.vault.on('delete', (file) => {
 				if (file instanceof TFolder) this.index.removeFolder(file.path);
 				else this.removed.add(file.path);
-				this.dropPath(file.path);
 				this.flush();
 			})
 		);
-	}
-
-	/** Follows a note or folder rename in the snapshot and in the log. */
-	private movePath(from: string, to: string): void {
-		for (const [path, entry] of [...this.snapshot]) {
-			if (!isKeyUnder(path, from)) continue;
-			this.snapshot.delete(path);
-			this.snapshot.set(`${to}${path.slice(from.length)}`, remapKeys(entry, from, to));
-		}
-		if (this.completions.log.renamePath(from, to) > 0) this.completions.onChanged();
-	}
-
-	/** Forgets a deleted note or folder, so the log does not keep dead keys. */
-	private dropPath(path: string): void {
-		for (const known of [...this.snapshot.keys()]) {
-			if (isKeyUnder(known, path)) this.snapshot.delete(known);
-		}
-		if (this.completions.log.forgetPath(path) > 0) this.completions.onChanged();
 	}
 
 	private async processPending(): Promise<void> {
@@ -254,88 +196,20 @@ export class TaskIndexer {
 	private indexFile(file: TFile, content: string | null): boolean {
 		if (content === null) {
 			this.index.removeFile(file.path);
-			this.snapshot.delete(file.path);
 			return false;
 		}
 		const cache = this.app.metadataCache.getFileCache(file);
 		if (cache?.listItems === undefined) {
 			this.index.removeFile(file.path);
-			this.snapshot.delete(file.path);
 			return false;
 		}
 		const periodic = resolvePeriodicNote(this.periodic, file.path);
 		if (periodic?.granularity === 'semester') rememberSemesterFolder(this.periodic, file.path);
 
 		const items = this.buildItems(file.path, content, cache, cache.listItems, periodic);
-		this.trackCompletions(file.path, items);
-
 		const entry: FileEntry = { path: file.path, mtime: file.stat.mtime, items, periodic };
 		this.index.setFile(entry);
 		return true;
-	}
-
-	/**
-	 * Diffs the note against the previous snapshot, records the completions the
-	 * markdown does not date by itself, and hands those dates back to the tasks as
-	 * their `effectiveDate`.
-	 *
-	 * The **diff** covers every task; the **log** does not. Only tasks the log can
-	 * be responsible for are recorded: one with a `✅` date on the line, or one
-	 * living in a periodic note, already has a better date and is left alone.
-	 * Widening the diff without widening the log is what lets the celebration see
-	 * a checkbox ticked in a daily note — the commonest case there is — while
-	 * `data.json` keeps storing exactly what it stored before.
-	 *
-	 * Nothing is collected while {@link seeding}, and `detectCompletions` returns
-	 * nothing when the note has never been seen. Between them, the initial scan of
-	 * a vault full of completed tasks is silent, which is the whole reason those
-	 * two guards exist.
-	 */
-	private trackCompletions(path: string, items: readonly Task[]): void {
-		const keys = completionKeys(items);
-		const current = new Map<string, boolean>();
-		/** The task behind each key, so a transition can name what transitioned. */
-		const owner = new Map<string, Task>();
-		for (const [i, item] of items.entries()) {
-			const key = keys[i];
-			if (key === undefined || key === null) continue;
-			current.set(key, item.isCompleted);
-			owner.set(key, item);
-		}
-
-		const { log } = this.completions;
-		if (!this.seeding) {
-			const previous = this.snapshot.get(path) ?? null;
-			const { transitioned, appeared } = detectCompletions(previous, current);
-			const today = moment().format('YYYY-MM-DD');
-			let changed = false;
-			// A real transition is dated today. A task that merely turned up already
-			// completed is usually an old one whose text was edited into a new key,
-			// so it only fills a gap — it never moves a date that already exists.
-			for (const key of transitioned) {
-				if (dateableByLog(owner.get(key))) changed = log.record(key, today, true) || changed;
-			}
-			// `appeared` never overwrites a date: a task that simply turns up already
-			// completed is a pasted line, a synced note, or an old completion under a
-			// new key after an edit — not something that happened today.
-			for (const key of appeared) {
-				if (dateableByLog(owner.get(key))) changed = log.record(key, today, false) || changed;
-			}
-			if (changed) this.completions.onChanged();
-		}
-
-		if (current.size > 0) this.snapshot.set(path, current);
-		else this.snapshot.delete(path);
-
-		// Only completed tasks take a date from the log. The entry survives a task
-		// being un-ticked — so re-completing it later is a real transition and gets
-		// a fresh date — but an open task must not claim the old completion's day.
-		for (const [i, item] of items.entries()) {
-			if (item.effectiveDate !== null || !item.isCompleted) continue;
-			const key = keys[i];
-			if (key === undefined || key === null) continue;
-			item.effectiveDate = log.get(key);
-		}
 	}
 
 	private buildItems(
@@ -419,35 +293,6 @@ export class TaskIndexer {
 /* ------------------------------------------------------------------ *
  * Helpers
  * ------------------------------------------------------------------ */
-
-/**
- * Whether the completion log is this task's only possible source of a date: it
- * carries no completion date of its own and lives outside every periodic note.
- *
- * The snapshot is wider than this — it diffs every task — so the argument is
- * optional: a key with no task behind it is nothing the log should record.
- */
-function dateableByLog(item: Task | undefined): boolean {
-	if (item === undefined) return false;
-	return item.isTask && item.dates.done === undefined && item.noteGranularity === null;
-}
-
-/**
- * Rewrites the note path inside a snapshot's keys after a rename, using the
- * same path-segment comparison the log itself uses — a raw `startsWith` on the
- * whole key would drag `Notes2.md::…` along when the folder `Notes` is renamed.
- */
-function remapKeys(
-	entry: ReadonlyMap<string, boolean>,
-	from: string,
-	to: string
-): Map<string, boolean> {
-	const out = new Map<string, boolean>();
-	for (const [key, completed] of entry) {
-		out.set(remapKeyPath(key, from, to) ?? key, completed);
-	}
-	return out;
-}
 
 function nextTick(): Promise<void> {
 	return new Promise((resolve) => {

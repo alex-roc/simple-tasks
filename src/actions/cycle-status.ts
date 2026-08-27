@@ -19,8 +19,11 @@ import { rewriteTaskLine } from './edit-task.ts';
  * - a line that carries a done date but is moved to a status that is **not** a
  *   completion loses it, for the same reason.
  *
- * Everything else — when did this actually get done — is the completion log's
- * job, and it needs no markdown at all. See `dev-docs/heatmap-and-stats.md`.
+ * The consequence is deliberate and worth stating: for a task in a note that is
+ * not a daily note, **nobody records when it was completed**, and the heatmap
+ * leaves it out. The alternative the plugin used to run — dating completions by
+ * the day it observed them — produced dates that were simply false. Better a
+ * missing day than an invented one. See `dev-docs/heatmap-and-stats.md`.
  *
  * ## The one place that knows a task was completed
  *

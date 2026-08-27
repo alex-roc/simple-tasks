@@ -35,9 +35,8 @@ import { TaskRowList, noteName } from '../components/task-row-list.ts';
  * The checkbox calls `cycleTaskStatus`, the row opens the very same
  * `TaskPopover` the agenda and the editor open, and both go through
  * `actions/`. So a status change from a Base takes the same path — the same
- * re-location, the same serializer, the same completion log, the same
- * completion burst — as one made anywhere else. The rows themselves are drawn
- * by the same `TaskRowList` the agenda uses.
+ * re-location and the same serializer — as one made anywhere else. The rows
+ * themselves are drawn by the same `TaskRowList` the agenda uses.
  *
  * ## Nothing is registered while rendering
  *

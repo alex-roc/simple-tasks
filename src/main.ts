@@ -1,4 +1,4 @@
-import { Notice, Platform, Plugin, debounce, moment } from 'obsidian';
+import { Notice, Platform, Plugin, moment } from 'obsidian';
 import type { Editor, MarkdownFileInfo, MarkdownView } from 'obsidian';
 import { cycleTaskStatus, setTaskStatus } from './actions/cycle-status.ts';
 import { addTaskTag, removeTaskTag, setTaskPriority } from './actions/edit-task.ts';
@@ -11,7 +11,6 @@ import { registerCliCommands } from './cli/index.ts';
 import type { PeriodicGranularity, PeriodicLevel } from './domain/periodic.ts';
 import type { Task, TaskPriority } from './domain/task.ts';
 import { CalendarPlusIntegration } from './integrations/calendar-plus.ts';
-import { CompletionLog } from './index/completion-log.ts';
 import { TaskIndexer } from './index/indexer.ts';
 import { StatsCache } from './index/stats.ts';
 import { INDEX_CHANGED, TaskIndex } from './index/task-index.ts';
@@ -33,16 +32,14 @@ import { HEATMAP_VIEW_TYPE, HeatmapView } from './ui/views/heatmap-view.ts';
  * numbers belong to their own folders.
  */
 
-/** Log writes come in bursts while a note is being edited; coalesce them. */
-const PERSIST_DEBOUNCE_MS = 2000;
-
 /**
- * Everything this plugin keeps in `data.json`. The settings stay at the top
- * level, where they already were, so an existing file keeps working.
+ * A key written by versions up to 0.2.0: a record of when the plugin first
+ * *observed* each completion, used to date tasks the markdown does not date. It
+ * was removed because observation is not evidence — see `completionDate` in
+ * `index/stats.ts`. Its presence in `data.json` is the trigger to rewrite the
+ * file without it, so the stale dates do not linger in a user's vault.
  */
-interface PersistedData extends SimpleTasksSettings {
-	completionLog: ReturnType<CompletionLog['toJSON']>;
-}
+const LEGACY_COMPLETION_LOG = 'completionLog';
 
 export default class SimpleTasksPlugin extends Plugin {
 	settings: SimpleTasksSettings = DEFAULT_SETTINGS;
@@ -52,12 +49,6 @@ export default class SimpleTasksPlugin extends Plugin {
 	 * the handle used to verify the index from the Obsidian CLI (`eval`).
 	 */
 	readonly index = new TaskIndex();
-
-	/**
-	 * The plugin's own record of when a task was completed — the last resort for
-	 * tasks that live outside periodic notes and carry no date on the line.
-	 */
-	readonly completionLog = new CompletionLog();
 
 	/** Memoized aggregates over the index. Invalidated by the index's own event. */
 	readonly stats = new StatsCache(() => ({
@@ -99,19 +90,10 @@ export default class SimpleTasksPlugin extends Plugin {
 
 	private indexer: TaskIndexer | null = null;
 
-	private readonly persistSoon = debounce(() => {
-		void this.persist();
-	}, PERSIST_DEBOUNCE_MS);
-
 	async onload() {
 		await this.loadPersisted();
 
-		this.indexer = new TaskIndexer(this.app, this, this.index, () => this.settings, {
-			log: this.completionLog,
-			onChanged: () => {
-				this.persistSoon();
-			},
-		});
+		this.indexer = new TaskIndexer(this.app, this, this.index, () => this.settings);
 		this.addSettingTab(new SimpleTasksSettingTab(this.app, this));
 
 		// Registered here rather than in the view: the cache outlives every view,
@@ -163,12 +145,6 @@ export default class SimpleTasksPlugin extends Plugin {
 		this.app.workspace.onLayoutReady(() => {
 			void this.indexer?.start();
 		});
-	}
-
-	onunload() {
-		// The debounce may be holding unwritten completions.
-		this.persistSoon.cancel();
-		void this.persist();
 	}
 
 	/* -------------------------------------------------- periodic notes */
@@ -230,17 +206,6 @@ export default class SimpleTasksPlugin extends Plugin {
 			factory: (controller, containerEl) => new TasksBasesView(controller, containerEl, this),
 			options: () => basesViewOptions(),
 		});
-	}
-
-	/**
-	 * Marks the completion log dirty from outside the indexer.
-	 *
-	 * `persist()` is private and the only writer of `data.json`; this is the one
-	 * door into its debounce, used by `move-task` when it carries a completion
-	 * entry across notes.
-	 */
-	markCompletionLogChanged(): void {
-		this.persistSoon();
 	}
 
 	/** Opens the agenda on a given day. Used by the heatmap's day clicks. */
@@ -320,8 +285,8 @@ export default class SimpleTasksPlugin extends Plugin {
 			new CalendarPlusMissingModal(this.app).open();
 			return;
 		}
-		// The calendar draws a cell from `effectiveDate`; a vault where no task has
-		// one contributes nothing to any cell of any period.
+		// A cell is drawn from the periodic note a task lives in, or from a `✅` on
+		// its line. A vault where no task has either contributes nothing anywhere.
 		if (this.index.all().some((task) => task.effectiveDate !== null)) return;
 		new Notice(t('calendar.nothingToShow'));
 	}
@@ -362,9 +327,12 @@ export default class SimpleTasksPlugin extends Plugin {
 	private async loadPersisted(): Promise<void> {
 		const raw: unknown = await this.loadData();
 		this.settings = normalizeSettings(raw);
-		const stored = typeof raw === 'object' && raw !== null ? (raw as Partial<PersistedData>) : null;
-		this.completionLog.load(stored?.completionLog);
-		if (this.completionLog.prune(moment().format('YYYY-MM-DD')) > 0) this.persistSoon();
+		// Drop the observed-completion log of 0.2.0 and earlier. Rewriting on sight
+		// rather than leaving it in place matters: the entries are wrong dates, and a
+		// user who downgrades should not get them back.
+		if (typeof raw === 'object' && raw !== null && LEGACY_COMPLETION_LOG in raw) {
+			await this.persist();
+		}
 	}
 
 	/**
@@ -395,17 +363,15 @@ export default class SimpleTasksPlugin extends Plugin {
 	}
 
 	/**
-	 * The single writer of `data.json`.
+	 * The single writer of `data.json`, which now holds nothing but the settings.
 	 *
-	 * `saveData()` replaces the whole file, so two writers each saving their own
-	 * slice would clobber each other — the settings tab would erase the
-	 * completion log and vice versa. Everything persisted therefore goes through
-	 * here, and this function always writes the complete document.
+	 * `saveData()` replaces the whole file, so writing a slice of it drops
+	 * everything else — which is exactly how the legacy completion log gets
+	 * removed, and why nothing else may accumulate state here. Every number the
+	 * plugin shows is derived from the vault.
 	 */
 	private async persist(): Promise<void> {
-		this.completionLog.prune(moment().format('YYYY-MM-DD'));
-		const data: PersistedData = { ...this.settings, completionLog: this.completionLog.toJSON() };
-		await this.saveData(data);
+		await this.saveData({ ...this.settings });
 	}
 }
 

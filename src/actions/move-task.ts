@@ -9,8 +9,6 @@ import {
 	subtreeRange,
 } from '../domain/subtree.ts';
 import type { Task, TaskNode } from '../domain/task.ts';
-import { planCompletionTransfers } from '../index/completion-log.ts';
-import type { CompletionTransfer } from '../index/completion-log.ts';
 import { t, tCount } from '../i18n/index.ts';
 import type SimpleTasksPlugin from '../main.ts';
 import { ensureNote } from './ensure-note.ts';
@@ -46,14 +44,12 @@ import { ensureNote } from './ensure-note.ts';
  * a single `vault.process`, which is both safer and the common case for
  * reordering inside a daily note.
  *
- * ## The completion log travels with the task
- *
- * A completion key carries the note path, so a cross-note move mints a new key
- * for the same task and the indexer, seeing a task that "appeared already
- * completed", would date it **today** — a completion from 2025 landing on
- * today's heatmap cell. The move is the only moment that knows both halves of
- * that identity, so it carries the entries across itself, for the whole subtree
- * and before the index catches up. See {@link planCompletionTransfer}.
+ * A move carries no bookkeeping of its own. It used to hand the completion log's
+ * entries from the old note's keys to the new ones — a whole apparatus that
+ * existed only because the plugin dated completions by observing them. Now that a
+ * completion's day comes from the markdown or from nowhere, moving a task to
+ * another note simply moves it: a task in a daily note takes that day's date with
+ * the line it is written on, and one in a project note never had a date to lose.
  */
 
 export interface MoveDestination {
@@ -121,10 +117,6 @@ export async function moveTask(
 		return moveWithinNote(plugin, task, target, { heading, headingLevel }, options);
 	}
 
-	// Planned before anything is written: it reads the index, which still
-	// describes both notes as they are at this instant.
-	const completions = planCompletionTransfer(plugin, task, target.path);
-
 	// Step 2: cut, atomically, from whatever the note says right now.
 	const cut = await cutSubtree(plugin, source, task);
 	if (cut === null) {
@@ -135,7 +127,6 @@ export async function moveTask(
 	// Step 3: insert, and put the block back if the destination refuses it.
 	try {
 		const result = await insertIntoNote(plugin, target, cut.block, { heading, headingLevel });
-		applyCompletionTransfer(plugin, completions);
 		if (options.silent !== true) announce(result);
 		return result;
 	} catch (error) {
@@ -368,66 +359,6 @@ function rangeOf(
 	const itemLines = new Set(items.map((item) => item.line + shift));
 	const descendants = new Set(descendantLines(plugin, task).map((line) => line + shift));
 	return subtreeRange(lines, at, descendants, itemLines);
-}
-
-/* ------------------------------------------------------------------ *
- * The completion log
- * ------------------------------------------------------------------ */
-
-/**
- * The completion entries the subtree has to take with it.
- *
- * All this does is feed the index to {@link planCompletionTransfers}, which
- * holds the decision and is unit-tested without an app. It reads the index
- * *before* the write, while it still describes both notes.
- *
- * A same-note move is skipped outright: the key does not mention the line, so
- * reordering inside a note does not change it.
- */
-function planCompletionTransfer(
-	plugin: SimpleTasksPlugin,
-	task: Task,
-	destinationPath: string
-): CompletionTransfer[] {
-	if (destinationPath === task.path) return [];
-	const entry = plugin.index.fileEntry(task.path);
-	if (entry === null) return [];
-
-	const movedLines = new Set([task.line, ...descendantLines(plugin, task)]);
-	const movedIndices: number[] = [];
-	for (const [i, item] of entry.items.entries()) {
-		if (movedLines.has(item.line)) movedIndices.push(i);
-	}
-
-	return planCompletionTransfers(
-		entry.items,
-		movedIndices,
-		destinationPath,
-		plugin.index.fileEntry(destinationPath)?.items ?? [],
-		(key) => plugin.completionLog.get(key)
-	);
-}
-
-/**
- * Writes the planned entries, once the subtree is really in its new note.
- *
- * `overwrite: true` on purpose: whatever the destination key held was a guess
- * made by the "appeared already completed" rule, and this is the one caller
- * that actually knows. Running before the debounced reindex is what stops that
- * rule from ever seeing the task as new.
- */
-function applyCompletionTransfer(
-	plugin: SimpleTasksPlugin,
-	moves: readonly CompletionTransfer[]
-): void {
-	if (moves.length === 0) return;
-	const log = plugin.completionLog;
-	let changed = false;
-	for (const move of moves) {
-		if (log.record(move.to, move.date, true)) changed = true;
-		if (log.forget(move.from)) changed = true;
-	}
-	if (changed) plugin.markCompletionLogChanged();
 }
 
 /** Every line below a task in the outline, from the index's own tree. */

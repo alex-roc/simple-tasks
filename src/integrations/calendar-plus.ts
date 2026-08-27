@@ -3,7 +3,7 @@ import type { App, Menu } from 'obsidian';
 import { moveTasksToDate } from '../actions/move-task.ts';
 import type { Task } from '../domain/task.ts';
 import { INDEX_CHANGED } from '../index/task-index.ts';
-import { isDayPrecise, isFromOwnDayNote } from '../index/stats.ts';
+import { completionDate, ownDayDate } from '../index/stats.ts';
 import { t, tCount } from '../i18n/index.ts';
 import type SimpleTasksPlugin from '../main.ts';
 import type {
@@ -134,16 +134,9 @@ export function openCalendarPlusPage(): void {
 interface PeriodCount {
 	completed: number;
 	open: number;
-	/**
-	 * How many of the completions came from **another note** — a task ticked in a
-	 * project note, which the completion log dates. It is what answers "my daily
-	 * note has nothing done, so why does this day say three completed?", and the
-	 * tooltip says it rather than leaving it to be deduced.
-	 */
-	elsewhere: number;
 }
 
-const NO_TASKS: PeriodCount = { completed: 0, open: 0, elsewhere: 0 };
+const NO_TASKS: PeriodCount = { completed: 0, open: 0 };
 
 /** At most this many dots of each kind, so a busy day stays readable. */
 const MAX_DOTS_PER_KIND = 2;
@@ -157,11 +150,12 @@ const MIN_VALUE_SCALE = 4;
 /**
  * Everything the source serves, folded out of the index once per change.
  *
- * Two maps rather than one, for the reason `stats.ts` already documents: a task
- * in a *monthly* note is attributed to the 1st, and counting it in that day's
- * cell would spike every first-of-month. Day cells therefore read the
- * day-precise map, while a month button legitimately sums everything attributed
- * anywhere inside it.
+ * Two maps rather than one. A **day** cell counts only what belongs to that very
+ * day: the tasks written in its own daily note, plus any task whose line carries a
+ * completion date. A **period** button — month, quarter, year — legitimately adds
+ * the coarser notes inside it, so the tasks of `Cronos/Mensuario/2026-08.md` count
+ * towards August. Folding them into one map would spike every first-of-month,
+ * since a monthly note is attributed to the 1st.
  */
 class TaskCounts {
 	private readonly plugin: SimpleTasksPlugin;
@@ -230,14 +224,12 @@ class TaskCounts {
 	private sumRange(from: string, to: string): PeriodCount {
 		let completed = 0;
 		let open = 0;
-		let elsewhere = 0;
 		for (const [date, count] of this.byDate ?? []) {
 			if (date < from || date > to) continue;
 			completed += count.completed;
 			open += count.open;
-			elsewhere += count.elsewhere;
 		}
-		return { completed, open, elsewhere };
+		return { completed, open };
 	}
 
 	private build(): void {
@@ -245,30 +237,23 @@ class TaskCounts {
 		const byDay = new Map<string, PeriodCount>();
 		const byDate = new Map<string, PeriodCount>();
 		for (const task of this.plugin.index.all()) {
-			const date = task.effectiveDate;
-			if (!task.isTask || date === null) continue;
-			const own = isFromOwnDayNote(task);
-			bump(byDate, date, task.isCompleted, own);
-			if (isDayPrecise(task)) bump(byDay, date, task.isCompleted, own);
+			if (!task.isTask) continue;
+			const day = task.isCompleted ? completionDate(task) : ownDayDate(task);
+			if (day !== null) bump(byDay, day, task.isCompleted);
+			// A task with no day of its own still belongs to whatever periodic note
+			// holds it; one with no periodic note at all belongs to no period.
+			const period = day ?? task.noteDate;
+			if (period !== null) bump(byDate, period, task.isCompleted);
 		}
 		this.byDay = byDay;
 		this.byDate = byDate;
 	}
 }
 
-function bump(
-	counts: Map<string, PeriodCount>,
-	date: string,
-	completed: boolean,
-	ownDayNote: boolean
-): void {
-	const current = counts.get(date) ?? { completed: 0, open: 0, elsewhere: 0 };
-	if (completed) {
-		current.completed += 1;
-		if (!ownDayNote) current.elsewhere += 1;
-	} else {
-		current.open += 1;
-	}
+function bump(counts: Map<string, PeriodCount>, date: string, completed: boolean): void {
+	const current = counts.get(date) ?? { completed: 0, open: 0 };
+	if (completed) current.completed += 1;
+	else current.open += 1;
 	counts.set(date, current);
 }
 
@@ -338,22 +323,16 @@ class TaskCalendarSource implements CalendarSource {
 
 	getMetadata(date: Moment, granularity: Granularity): CellMetadata | null {
 		const iso = date.format('YYYY-MM-DD');
-		const { completed, open, elsewhere } = this.counts.forPeriod(iso, granularity);
+		const { completed, open } = this.counts.forPeriod(iso, granularity);
 		if (completed === 0 && open === 0) return null;
 
 		const figures: string[] = [];
 		if (completed > 0) figures.push(tCount('calendar.completedCount', completed));
 		if (open > 0) figures.push(tCount('calendar.openCount', open));
-		// On its own line, and only when it has something to explain: a day whose
-		// completions are all in its own note needs no footnote.
-		const tooltip =
-			elsewhere > 0
-				? `${figures.join(' · ')}\n${tCount('calendar.elsewhereCount', elsewhere)}`
-				: figures.join(' · ');
 
 		const metadata: CellMetadata = {
 			classes: open > 0 ? ['has-open'] : [],
-			tooltip,
+			tooltip: figures.join(' · '),
 		};
 
 		if (this.plugin.settings.calendarDisplay === 'dots') {

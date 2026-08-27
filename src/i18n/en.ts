@@ -48,8 +48,6 @@ const en = {
 	'heatmap.dayEmpty': 'Nothing completed on {date}',
 	'heatmap.dayCount_one': '{count} task completed on {date}',
 	'heatmap.dayCount_other': '{count} tasks completed on {date}',
-	'heatmap.dayElsewhere_one': '{count} of them closed in another note',
-	'heatmap.dayElsewhere_other': '{count} of them closed in other notes',
 
 	/* ---------------------------------------------------------------- calendar */
 	'calendar.sourceName': 'Simple Tasks',
@@ -57,8 +55,6 @@ const en = {
 	'calendar.completedCount_other': '{count} tasks completed',
 	'calendar.openCount_one': '{count} task open',
 	'calendar.openCount_other': '{count} tasks open',
-	'calendar.elsewhereCount_one': '{count} of them closed in another note',
-	'calendar.elsewhereCount_other': '{count} of them closed in other notes',
 	'calendar.menu.showDay': 'Show the tasks of this day',
 	'calendar.menu.showPeriod': 'Show the tasks of {date}',
 	'calendar.missing.title': 'Calendar Plus is not installed',

@@ -19,7 +19,6 @@ import type { PeriodicGranularity, TaskPriority } from '../domain/task.ts';
 export interface StatTask {
 	isTask: boolean;
 	isCompleted: boolean;
-	effectiveDate: string | null;
 	noteGranularity: PeriodicGranularity | null;
 	/** First day of the containing periodic note's period, or null. */
 	noteDate: string | null;
@@ -123,58 +122,54 @@ export function startOfMonth(date: string): string {
  * ------------------------------------------------------------------ */
 
 /**
- * Whether a task's date is precise enough for a per-day chart.
+ * The day a completed task counts for, or `null` when there is no honest answer.
  *
- * A completed task in a *monthly* note has `effectiveDate` set to the 1st, and
- * counting it there would spike every first-of-month. Only three attributions
- * are day-precise: a date written on the line, a daily note, and the completion
- * log (which only ever fills tasks in non-periodic notes).
+ * Two attributions, in order, and **only** these two:
+ *
+ * 1. a completion date written on the line (`✅ 2026-01-31`) — the user's own
+ *    statement about when it happened, and the only one that survives the task
+ *    being edited, renamed or moved;
+ * 2. the task living in **that day's own daily note**.
+ *
+ * Everything else is unknown, and unknown does not become today. A task in a
+ * project note carries no date at all: the markdown does not say when it closed,
+ * and no amount of watching the vault can recover a day that passed before the
+ * plugin existed. It is left out of every per-day figure.
+ *
+ * This used to have a third source — a log in `data.json` recording the day the
+ * plugin first *observed* each completion — and it was a mistake worth naming.
+ * Observation is not evidence: a task that merely turns up already completed
+ * (a note synced in, a line edited, a cache read that disagreed with the
+ * metadata) got stamped with the current date, so opening an old project note
+ * could file years of finished work onto a single day. The date must come from
+ * the vault or not at all.
+ *
+ * A note coarser than a day is excluded on purpose: a completed task in a
+ * *monthly* note would otherwise spike every first-of-month.
  */
-export function isDayPrecise(task: StatTask): boolean {
-	if (task.effectiveDate === null) return false;
-	if (task.dates.done !== undefined) return true;
-	return task.noteGranularity === 'day' || task.noteGranularity === null;
+export function completionDate(task: StatTask): string | null {
+	if (!task.isTask || !task.isCompleted) return null;
+	if (task.dates.done !== undefined) return task.dates.done;
+	return ownDayDate(task);
 }
 
-/** Completions per day, over the tasks whose date is day-precise. */
+/**
+ * The day a task **lives in**, when it lives in that day's own daily note, and
+ * `null` for everything else — a project note, or a note coarser than a day.
+ *
+ * This is what a day cell of the calendar counts as still open: the tasks written
+ * in that day's note. A task's due date does not put it here, because a day cell
+ * is about the note, not about promises made elsewhere.
+ */
+export function ownDayDate(task: StatTask): string | null {
+	return task.noteGranularity === 'day' ? task.noteDate : null;
+}
+
+/** Completions per day, over the tasks a day can be named for. */
 export function completionsByDate(tasks: readonly StatTask[]): Map<string, number> {
 	const out = new Map<string, number>();
 	for (const task of tasks) {
-		if (!task.isTask || !task.isCompleted) continue;
-		if (!isDayPrecise(task)) continue;
-		const date = task.effectiveDate;
-		if (date === null) continue;
-		out.set(date, (out.get(date) ?? 0) + 1);
-	}
-	return out;
-}
-
-/**
- * Whether a task is attributed to a day **because it lives in that day's own
- * daily note**, as opposed to having been completed there while living elsewhere.
- */
-export function isFromOwnDayNote(task: StatTask): boolean {
-	if (task.noteGranularity !== 'day' || task.noteDate === null) return false;
-	return task.noteDate === task.effectiveDate;
-}
-
-/**
- * Of the completions of each day, how many came from **another note**.
- *
- * This exists to answer a question the plain count keeps provoking: "my daily note
- * has four open tasks and nothing done, so why does this day say three completed?"
- * Because a day counts the work that closed that day wherever it lives — a task
- * ticked in a project note is dated by the completion log and lands here. That is
- * the right measure for a productivity heatmap and the wrong one to compare against
- * a single note, so the figure that resolves the contradiction is offered alongside
- * it rather than left to be deduced.
- */
-export function completionsElsewhereByDate(tasks: readonly StatTask[]): Map<string, number> {
-	const out = new Map<string, number>();
-	for (const task of tasks) {
-		if (!task.isTask || !task.isCompleted) continue;
-		if (!isDayPrecise(task) || isFromOwnDayNote(task)) continue;
-		const date = task.effectiveDate;
+		const date = completionDate(task);
 		if (date === null) continue;
 		out.set(date, (out.get(date) ?? 0) + 1);
 	}
@@ -302,8 +297,6 @@ export class StatsCache {
 	private cached: {
 		stats: TaskStats;
 		counts: Map<string, number>;
-		/** Of those counts, the ones that came from another note. */
-		elsewhere: Map<string, number>;
 		today: string;
 	} | null = null;
 
@@ -321,17 +314,11 @@ export class StatsCache {
 		this.cached = null;
 	}
 
-	get(): { stats: TaskStats; counts: Map<string, number>; elsewhere: Map<string, number> } {
+	get(): { stats: TaskStats; counts: Map<string, number> } {
 		const { tasks, options } = this.source();
 		if (this.cached !== null && this.cached.today === options.today) return this.cached;
 		const counts = completionsByDate(tasks);
-		const stats = computeStats(tasks, options, counts);
-		this.cached = {
-			stats,
-			counts,
-			elsewhere: completionsElsewhereByDate(tasks),
-			today: options.today,
-		};
+		this.cached = { stats: computeStats(tasks, options, counts), counts, today: options.today };
 		return this.cached;
 	}
 }
