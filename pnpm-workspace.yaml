@@ -2,3 +2,11 @@
 # esbuild's install script fetches its platform binary, so it has to be allowed.
 allowBuilds:
   esbuild: true
+
+# The scanner at community.obsidian.md flags known-vulnerable packages anywhere in
+# the tree, and eslint still pulls js-yaml 4.3.0 (CVE-2026-59870) through
+# @eslint/eslintrc. It is a dev-only, transitive dependency that never reaches
+# main.js, but the cheapest way to keep the dependency report clean is to pin the
+# patched line here. Drop it once eslint ships a bumped eslintrc.
+overrides:
+  js-yaml@<4.3.1: '>=4.3.1'

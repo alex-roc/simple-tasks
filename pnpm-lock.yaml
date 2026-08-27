@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  js-yaml@<4.3.1: '>=4.3.1'
+
 importers:
 
   .:
@@ -27,8 +30,8 @@ importers:
         specifier: ^9.39.4
         version: 9.39.5(jiti@2.7.0)(supports-color@7.2.0)
       eslint-plugin-obsidianmd:
-        specifier: ^0.4.0
-        version: 0.4.1(@eslint/js@9.39.5)(@eslint/json@0.14.0)(@typescript-eslint/parser@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(obsidian@1.13.1(@codemirror/state@6.5.0)(@codemirror/view@6.38.6))(supports-color@7.2.0)(typescript-eslint@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))
+        specifier: ^0.4.2
+        version: 0.4.2(@eslint/js@9.39.5)(@eslint/json@0.14.0)(@typescript-eslint/parser@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(obsidian@1.13.1(@codemirror/state@6.5.0)(@codemirror/view@6.38.6))(supports-color@7.2.0)(typescript-eslint@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))
       globals:
         specifier: ^17.6.0
         version: 17.8.0
@@ -658,8 +661,8 @@ packages:
     peerDependencies:
       eslint: ^9 || ^10
 
-  eslint-plugin-obsidianmd@0.4.1:
-    resolution: {integrity: sha512-Nv3593kVsFOS8kir/HWaJ5CR3xcyiPWEPyXst5Pib8mxRYYuLYPpJS2ALMoZXHulHyiGwoYW8AaxvLRc4rhrRg==}
+  eslint-plugin-obsidianmd@0.4.2:
+    resolution: {integrity: sha512-NFp6wsRSvN0TU6EPi03uF2UQ3GuYyVtzjKDl25KyP8Bnz8gM0unX7R/e+VQ2JtMW2/3DC/VwIXjHnzAhB9JQwg==}
     engines: {node: '>= 18'}
     hasBin: true
     peerDependencies:
@@ -700,6 +703,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -991,8 +995,8 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
-  js-yaml@4.3.0:
-    resolution: {integrity: sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q==}
+  js-yaml@5.4.0:
+    resolution: {integrity: sha512-jE7vUJIebKzYQI5xu4co5CRBDlDEYnHrdzsxs4O2giCz4v2SbVMYKpmt1D9L38OKQAeCWmrOTRiCV93u0UkaJA==}
     hasBin: true
 
   json-buffer@3.0.1:
@@ -1556,7 +1560,7 @@ snapshots:
       globals: 14.0.0
       ignore: 5.3.2
       import-fresh: 3.3.1
-      js-yaml: 4.3.0
+      js-yaml: 5.4.0
       minimatch: 3.1.5
       strip-json-comments: 3.1.1
     transitivePeerDependencies:
@@ -2222,7 +2226,7 @@ snapshots:
     dependencies:
       eslint: 9.39.5(jiti@2.7.0)(supports-color@7.2.0)
 
-  eslint-plugin-obsidianmd@0.4.1(@eslint/js@9.39.5)(@eslint/json@0.14.0)(@typescript-eslint/parser@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(obsidian@1.13.1(@codemirror/state@6.5.0)(@codemirror/view@6.38.6))(supports-color@7.2.0)(typescript-eslint@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)):
+  eslint-plugin-obsidianmd@0.4.2(@eslint/js@9.39.5)(@eslint/json@0.14.0)(@typescript-eslint/parser@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(obsidian@1.13.1(@codemirror/state@6.5.0)(@codemirror/view@6.38.6))(supports-color@7.2.0)(typescript-eslint@8.65.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)):
     dependencies:
       '@eslint-community/eslint-plugin-eslint-comments': 4.7.2(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))
       '@eslint/config-helpers': 0.4.2
@@ -2619,7 +2623,7 @@ snapshots:
 
   js-tokens@4.0.0: {}
 
-  js-yaml@4.3.0:
+  js-yaml@5.4.0:
     dependencies:
       argparse: 2.0.1
 
