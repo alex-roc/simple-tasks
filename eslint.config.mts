@@ -24,6 +24,7 @@ export default defineConfig(
 		'dist',
 		'esbuild.config.mjs',
 		'version-bump.mjs',
+		'version-tag.mjs',
 		// Node-side dev tooling, not plugin code: outside the TS project.
 		'scripts/**',
 		'versions.json',

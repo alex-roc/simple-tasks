@@ -309,6 +309,39 @@ obs eval code="app.plugins.plugins['simple-tasks'].index.stats()"
 `eval` and `plugin:reload` measured 0/3 on stealing focus, `dev:errors` and `tasks`
 1/3 — so prefer `eval` when you need to ask the running app something.
 
+## Releasing
+
+Three commands, and the catalog picks it up on its own — there is nothing to
+re-submit once the plugin is listed.
+
+```bash
+pnpm version patch      # or minor / major
+git push origin main --follow-tags
+```
+
+What that runs, and why each piece exists:
+
+- `version-bump.mjs` (the `version` hook) syncs `manifest.json` and
+  `versions.json` from `package.json`. `versions.json` maps each release to the
+  `minAppVersion` it needs, which is what keeps a user on an older Obsidian
+  receiving the last version that still works for them.
+- `version-tag.mjs` (the `postversion` hook) renames the tag pnpm just made from
+  `v0.4.4` to `0.4.4`. The catalog matches a release to the manifest by an exact
+  tag, and pnpm ignores the `tag-version-prefix=""` in `.npmrc` because that is
+  an npm option. Do not remove this hook because "the tag looks fine".
+- The workflow builds, attests `main.js` and `styles.css`, and creates the
+  release **published** — not drafted, which is what the sample workflow does and
+  what left three releases invisible to BRAT and to the directory.
+
+Then write the release notes by hand (`gh release edit <tag> --notes "…"`), and
+check the scan at community.obsidian.md: **every version is re-scanned** and its
+warnings are published on the plugin's public scorecard, so a clean 0.4.4 does
+not excuse a 0.4.5 that adds a warning.
+
+Changing the plugin's `id` or `name` is not a release: Obsidian keys an
+installation by `id`, so it reaches users as a different plugin, with their
+settings left behind.
+
 ## Styling
 
 `styles.css` uses **only** Obsidian CSS variables — no literal colors, ever.

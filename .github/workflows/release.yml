@@ -40,6 +40,15 @@ jobs:
                       main.js
                       ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}
 
+            # Published, not drafted. The sample workflow drafts the release, and a
+            # draft is invisible to everything that matters: BRAT does not see it,
+            # the community directory does not see it, and the CI goes green while
+            # nobody can install a thing. It cost a manual `gh release edit
+            # --draft=false` after every single release until this line changed.
+            #
+            # `--notes` is left to be filled in afterwards on purpose: a release
+            # note worth reading is written by a person, and an empty one is easier
+            # to spot than a generated one nobody meant.
             - name: Create release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,5 +57,6 @@ jobs:
 
                   gh release create "$tag" \
                     --title="$tag" \
-                    --draft \
+                    --latest \
+                    --notes "" \
                     main.js manifest.json ${{ steps.styles.outputs.exists == 'true' && 'styles.css' || '' }}

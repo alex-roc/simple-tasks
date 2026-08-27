@@ -12,7 +12,8 @@
 		"test": "node --test \"src/**/*.test.ts\"",
 		"seed": "node scripts/seed-vault.mjs",
 		"verify": "node scripts/verify-vault.ts",
-		"install:vault": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production deploy"
+		"install:vault": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production deploy",
+		"postversion": "node version-tag.mjs"
 	},
 	"keywords": [
 		"obsidian",
