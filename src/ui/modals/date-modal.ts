@@ -1,4 +1,4 @@
-import { Modal, Setting, moment } from 'obsidian';
+import { Modal, Setting } from 'obsidian';
 import type { App } from 'obsidian';
 import { t } from '../../i18n/index.ts';
 
@@ -19,7 +19,7 @@ export class DatePickerModal extends Modal {
 
 	constructor(app: App, initial: string | null, onPick: (date: string) => void) {
 		super(app);
-		this.value = initial ?? moment().format('YYYY-MM-DD');
+		this.value = initial ?? window.moment().format('YYYY-MM-DD');
 		this.onPick = onPick;
 	}
 
@@ -64,7 +64,7 @@ export class DatePickerModal extends Modal {
 
 	private submit(): void {
 		if (this.submitted) return;
-		if (!moment(this.value, 'YYYY-MM-DD', true).isValid()) return;
+		if (!window.moment(this.value, 'YYYY-MM-DD', true).isValid()) return;
 		this.submitted = true;
 		this.close();
 		this.onPick(this.value);

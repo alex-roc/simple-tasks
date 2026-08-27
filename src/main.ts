@@ -1,4 +1,4 @@
-import { Notice, Platform, Plugin, moment } from 'obsidian';
+import { Notice, Platform, Plugin } from 'obsidian';
 import type { Editor, MarkdownFileInfo, MarkdownView } from 'obsidian';
 import { cycleTaskStatus, setTaskStatus } from './actions/cycle-status.ts';
 import { addTaskTag, removeTaskTag, setTaskPriority } from './actions/edit-task.ts';
@@ -54,8 +54,8 @@ export default class SimpleTasksPlugin extends Plugin {
 	readonly stats = new StatsCache(() => ({
 		tasks: this.index.all(),
 		options: {
-			today: moment().format('YYYY-MM-DD'),
-			firstDayOfWeek: moment.localeData().firstDayOfWeek(),
+			today: window.moment().format('YYYY-MM-DD'),
+			firstDayOfWeek: window.moment.localeData().firstDayOfWeek(),
 		},
 	}));
 
@@ -245,7 +245,7 @@ export default class SimpleTasksPlugin extends Plugin {
 			id: 'agenda-today',
 			name: t('command.agendaToday'),
 			callback: () => {
-				void this.showAgendaFor(moment().format('YYYY-MM-DD'));
+				void this.showAgendaFor(window.moment().format('YYYY-MM-DD'));
 			},
 		});
 

@@ -1,4 +1,4 @@
-import { Component, moment, setIcon, setTooltip } from 'obsidian';
+import { Component, setIcon, setTooltip } from 'obsidian';
 import { cycleTaskStatus, setTaskStatus } from '../../actions/cycle-status.ts';
 import { addTaskTag, removeTaskTag, setTaskPriority } from '../../actions/edit-task.ts';
 import { moveTask, moveTaskToDate, moveTasks, moveTasksToDate } from '../../actions/move-task.ts';
@@ -449,7 +449,7 @@ export class TaskPopover extends Component {
 				text:
 					taskAnchorDate(this.task) === today
 						? t('common.tomorrow')
-						: moment(next, 'YYYY-MM-DD').format('D MMM'),
+						: window.moment(next, 'YYYY-MM-DD').format('D MMM'),
 				label: t('popover.moveToTomorrow', { date: next }),
 			},
 			() => {

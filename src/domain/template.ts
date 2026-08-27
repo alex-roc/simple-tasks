@@ -1,5 +1,3 @@
-import { moment } from 'obsidian';
-
 /**
  * Expansion of the handful of placeholders Obsidian's own daily-note and
  * Periodic Notes templates use. Pure apart from `moment`, for the same reason
@@ -28,14 +26,14 @@ const PLACEHOLDER = /\{\{(date|time|title)(?::([^}]*))?\}\}/giu;
 const DEFAULT_TIME_FORMAT = 'HH:mm';
 
 export function fillTemplate(template: string, context: TemplateContext): string {
-	const when = moment(context.date, 'YYYY-MM-DD', true);
+	const when = window.moment(context.date, 'YYYY-MM-DD', true);
 	return template.replace(PLACEHOLDER, (whole, rawName: string, rawFormat?: string) => {
 		const name = rawName.toLowerCase();
 		if (name === 'title') return context.title;
 		// `{{date}}` is the note's own date; `{{time}}` is the clock, as in
 		// Obsidian's daily notes — a note created for next Friday still records
 		// the moment it was created.
-		const value = name === 'date' ? when : moment();
+		const value = name === 'date' ? when : window.moment();
 		if (!value.isValid()) return whole;
 		const fallback =
 			name === 'date' ? context.dateFormat : (context.timeFormat ?? DEFAULT_TIME_FORMAT);

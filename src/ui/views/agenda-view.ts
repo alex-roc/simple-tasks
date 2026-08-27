@@ -1,4 +1,4 @@
-import { ItemView, debounce, moment, setIcon, setTooltip } from 'obsidian';
+import { ItemView, debounce, setIcon, setTooltip } from 'obsidian';
 import type { Component, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import { openTaskAt } from '../../actions/open-task.ts';
 import { buildAgendaTree, collectAgenda, detailLines, groupTasks } from '../../domain/agenda.ts';
@@ -72,7 +72,7 @@ interface AgendaState {
 
 export class AgendaView extends ItemView {
 	private state: AgendaState = {
-		date: moment().format('YYYY-MM-DD'),
+		date: window.moment().format('YYYY-MM-DD'),
 		grouping: 'note',
 		hideCompleted: false,
 		widePeriods: false,
@@ -116,7 +116,7 @@ export class AgendaView extends ItemView {
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
 		if (typeof state === 'object' && state !== null) {
 			const raw = state as Partial<AgendaState>;
-			if (typeof raw.date === 'string' && moment(raw.date, 'YYYY-MM-DD', true).isValid()) {
+			if (typeof raw.date === 'string' && window.moment(raw.date, 'YYYY-MM-DD', true).isValid()) {
 				this.state.date = raw.date;
 			}
 			if (raw.grouping !== undefined && GROUPINGS.includes(raw.grouping)) {
@@ -360,7 +360,7 @@ export class AgendaView extends ItemView {
 		// dragged to 190 px is narrower than "Sun, 9 August 2026".
 		label.createSpan({
 			cls: 'simple-tasks-agenda-date-text',
-			text: moment(this.state.date, 'YYYY-MM-DD').format('ddd, LL'),
+			text: window.moment(this.state.date, 'YYYY-MM-DD').format('ddd, LL'),
 		});
 		this.toolbarScope?.registerDomEvent(label, 'click', () => {
 			new DatePickerModal(this.app, this.state.date, (date) => {
@@ -371,7 +371,7 @@ export class AgendaView extends ItemView {
 			this.shift(1);
 		});
 		this.iconButton(nav, 'calendar-check', t('agenda.goToToday'), () => {
-			this.showDate(moment().format('YYYY-MM-DD'));
+			this.showDate(window.moment().format('YYYY-MM-DD'));
 		});
 		this.iconButton(nav, 'file-symlink', t('agenda.openDailyNote'), () => {
 			void this.plugin.openPeriodicNote('day', this.state.date);
@@ -465,6 +465,6 @@ export class AgendaView extends ItemView {
 	}
 
 	private shift(days: number): void {
-		this.showDate(moment(this.state.date, 'YYYY-MM-DD').add(days, 'days').format('YYYY-MM-DD'));
+		this.showDate(window.moment(this.state.date, 'YYYY-MM-DD').add(days, 'days').format('YYYY-MM-DD'));
 	}
 }

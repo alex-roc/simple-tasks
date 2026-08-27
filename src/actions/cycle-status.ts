@@ -1,4 +1,3 @@
-import { moment } from 'obsidian';
 import { nextStatusSymbol, resolveStatus } from '../domain/statuses.ts';
 import { withStatus } from '../domain/serialize-line.ts';
 import type { Task } from '../domain/task.ts';
@@ -44,7 +43,7 @@ export async function setTaskStatus(
 	// would silently turn a section heading into something the stats count.
 	if (!task.isTask) return false;
 	const completed = resolveStatus(plugin.settings.statuses, symbol).isCompleted;
-	const today = moment().format('YYYY-MM-DD');
+	const today = window.moment().format('YYYY-MM-DD');
 	return rewriteTaskLine(plugin, task, (line) => {
 		const next = withStatus(line, symbol);
 		if (line.dates.done === undefined) return next;

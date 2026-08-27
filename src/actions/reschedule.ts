@@ -1,4 +1,3 @@
-import { moment } from 'obsidian';
 import type { Task, TaskDates } from '../domain/task.ts';
 import type SimpleTasksPlugin from '../main.ts';
 import { rewriteTaskLine } from './edit-task.ts';
@@ -38,7 +37,7 @@ export async function rescheduleTask(
 
 /** `YYYY-MM-DD` for today plus `days`. The one place the offset is computed. */
 export function relativeDate(days: number): string {
-	return moment().add(days, 'days').format('YYYY-MM-DD');
+	return window.moment().add(days, 'days').format('YYYY-MM-DD');
 }
 
 /**
@@ -68,5 +67,5 @@ export function taskAnchorDate(task: Task): string {
 
 /** `YYYY-MM-DD`, `days` after the task's own day. See {@link taskAnchorDate}. */
 export function relativeToTask(task: Task, days: number): string {
-	return moment(taskAnchorDate(task), 'YYYY-MM-DD').add(days, 'days').format('YYYY-MM-DD');
+	return window.moment(taskAnchorDate(task), 'YYYY-MM-DD').add(days, 'days').format('YYYY-MM-DD');
 }

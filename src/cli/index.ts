@@ -1,4 +1,3 @@
-import { moment } from 'obsidian';
 import type { CliData, CliFlags } from 'obsidian';
 import { collectAgenda, sortTasks } from '../domain/agenda.ts';
 import type { PeriodicGranularity, Task } from '../domain/task.ts';
@@ -184,10 +183,10 @@ const ISO = 'YYYY-MM-DD';
 
 function todayCommand(plugin: SimpleTasksPlugin, params: CliData): string {
 	const requested = params.date;
-	if (requested !== undefined && !moment(requested, ISO, true).isValid()) {
+	if (requested !== undefined && !window.moment(requested, ISO, true).isValid()) {
 		return t('cli.error.date', { value: requested });
 	}
-	const date = requested ?? moment().format(ISO);
+	const date = requested ?? window.moment().format(ISO);
 
 	const tasks = sortTasks(
 		collectAgenda(plugin.index, {
@@ -269,7 +268,7 @@ async function moveCommand(plugin: SimpleTasksPlugin, params: CliData): Promise<
 
 	let moved;
 	if (date !== undefined) {
-		if (!moment(date, ISO, true).isValid()) return t('cli.error.date', { value: date });
+		if (!window.moment(date, ISO, true).isValid()) return t('cli.error.date', { value: date });
 		const granularity = GRANULARITIES.find((g) => g === params.granularity) ?? 'day';
 		moved = await plugin.actions.moveToDate(task, date, granularity);
 	} else {

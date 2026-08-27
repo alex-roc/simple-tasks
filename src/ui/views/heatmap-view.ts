@@ -1,4 +1,4 @@
-import { ItemView, debounce, moment } from 'obsidian';
+import { ItemView, debounce } from 'obsidian';
 import type { WorkspaceLeaf } from 'obsidian';
 import { buildHeatmapCalendar } from '../../index/stats.ts';
 import type { HeatmapDay, TaskStats } from '../../index/stats.ts';
@@ -101,9 +101,9 @@ export class HeatmapView extends ItemView {
 		contentEl.addClass('simple-tasks-heatmap');
 
 		const { stats, counts } = this.plugin.stats.get();
-		const locale = moment.localeData();
+		const locale = window.moment.localeData();
 		const calendar = buildHeatmapCalendar({
-			endDate: moment().format('YYYY-MM-DD'),
+			endDate: window.moment().format('YYYY-MM-DD'),
 			months: MONTHS_SHOWN,
 			firstDayOfWeek: locale.firstDayOfWeek(),
 			counts,
@@ -226,7 +226,7 @@ function renderSummary(panel: HTMLElement, stats: TaskStats): void {
 	footer.createDiv({
 		cls: 'simple-tasks-stats-note',
 		text: t('stats.busiestDay', {
-			date: moment(stats.busiestDay.date, 'YYYY-MM-DD').format('LL'),
+			date: window.moment(stats.busiestDay.date, 'YYYY-MM-DD').format('LL'),
 			count: stats.busiestDay.count,
 		}),
 	});
@@ -249,7 +249,7 @@ function renderTopTags(panel: HTMLElement, stats: TaskStats): void {
  * completed in that day's own note, which is what you see on opening it.
  */
 function describeDay(day: HeatmapDay): string {
-	const date = moment(day.date, 'YYYY-MM-DD').format('LL');
+	const date = window.moment(day.date, 'YYYY-MM-DD').format('LL');
 	if (day.count === 0) return t('heatmap.dayEmpty', { date });
 	return tCount('heatmap.dayCount', day.count, { date });
 }

@@ -173,6 +173,20 @@ the inner `*` one and its `indent` is the literal `"- "`. Anything that re-parse
 a line must strip `task.indent` first, exactly as the indexer did — parsing the
 whole line yields the wrong text and matches nothing.
 
+## `moment` comes from `window`, never from the `obsidian` import
+
+Use `window.moment(...)`, and `ReturnType<typeof window.moment>` for the type.
+`import { moment } from 'obsidian'` is typed as `typeof import('moment')`, so in
+any environment where the `moment` package is not resolvable — the community
+directory's scanner is one — it degrades to `any` without an error, and every
+date expression downstream turns into an `no-unsafe-*` warning on the public
+scorecard. `window.moment` is typed by the `moment` package directly: where it is
+missing, the build fails loudly instead. Read it inside functions, never at module
+load, so `domain/` stays runnable under `node --test`.
+
+`moment` is also a declared devDependency for exactly this reason. Do not remove
+it because "nothing imports it".
+
 ## Interface language
 
 Four binding rules; how the module is built, and why the eslint config uses

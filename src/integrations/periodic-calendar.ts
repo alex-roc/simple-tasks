@@ -1,4 +1,4 @@
-import { Events, debounce, moment } from 'obsidian';
+import { Events, debounce } from 'obsidian';
 import type { App, Menu } from 'obsidian';
 import { moveTasksToDate } from '../actions/move-task.ts';
 import type { Task } from '../domain/task.ts';
@@ -266,7 +266,7 @@ function bump(counts: Map<string, PeriodCount>, date: string, completed: boolean
  * uses — since moment has no unit for them.
  */
 function periodRange(date: string, granularity: Granularity): { start: string; end: string } {
-	const at = moment(date, 'YYYY-MM-DD', true);
+	const at = window.moment(date, 'YYYY-MM-DD', true);
 	if (granularity === 'semester') {
 		const first = at.month() < 6 ? 0 : 6;
 		const start = at.clone().month(first).startOf('month');
@@ -534,7 +534,7 @@ export class PeriodicCalendarIntegration {
 		if (typeof openView === 'function') await openView.call(api);
 		else await this.openViewByType();
 		await this.revealLeaves();
-		api.revealDate(moment(), 'day');
+		api.revealDate(window.moment(), 'day');
 		return true;
 	}
 

@@ -1,20 +1,29 @@
-import { moment } from 'obsidian';
 import type { PeriodicGranularity } from './task.ts';
 
 /**
  * Periodic note ⇄ date resolution for the six granularities, driven by the
  * configuration that already lives in the vault.
  *
- * ## Why this file imports `moment`
+ * ## Why this file uses `window.moment`
  *
  * `domain/` must not touch `app`, the DOM or the vault, and this file does none
  * of those things: reading the config files is delegated to callbacks the caller
- * supplies. It does import `moment`, which Obsidian re-exports — a pure date
- * library. That is deliberate: the weekly default format is `gggg-[W]ww`, whose
- * week numbering depends on the active locale, and using *the same* moment
- * instance Periodic Notes uses is the only way to be guaranteed to agree with
- * the filenames actually on disk. Reimplementing locale week math would be a
- * guess dressed up as purity.
+ * supplies. It does use `moment` — a pure date library — deliberately: the weekly
+ * default format is `gggg-[W]ww`, whose week numbering depends on the active
+ * locale, and using *the same* moment instance Periodic Notes uses is the only
+ * way to be guaranteed to agree with the filenames actually on disk.
+ * Reimplementing locale week math would be a guess dressed up as purity.
+ *
+ * It reads it off the **global**, not from `import { moment } from 'obsidian'`,
+ * and that is not a style choice. Obsidian's typings declare the re-export as
+ * `typeof import('moment')`; where the `moment` package is not resolvable — the
+ * community directory's scanner is one such environment — that import silently
+ * degrades to `any`, and every date expression downstream becomes an unsafe-call
+ * warning published on the plugin's scorecard. Measured: 130-odd of them, all
+ * from this one import. `window.moment` is typed by the `moment` package itself,
+ * so where it is missing the build fails loudly instead of going `any` quietly.
+ * It is read inside functions, never at module load, so importing this file
+ * outside Obsidian — `node --test` — still costs nothing.
  *
  * ## Semesters
  *
@@ -278,7 +287,7 @@ function isUnder(path: string, folder: string): boolean {
 	return path === folder || path.startsWith(`${folder}/`);
 }
 
-function spanFor(start: ReturnType<typeof moment>, granularity: PeriodicGranularity): PeriodicRef {
+function spanFor(start: ReturnType<typeof window.moment>, granularity: PeriodicGranularity): PeriodicRef {
 	const from = start.clone();
 	const to = start.clone();
 	switch (granularity) {
@@ -312,7 +321,7 @@ function parseSemester(name: string, format: string): PeriodicRef | null {
 	for (const semester of [1, 2] as const) {
 		const expanded = expandSemesterFormat(format, semester);
 		if (expanded === null) return null;
-		const parsed = moment(name, expanded, true);
+		const parsed = window.moment(name, expanded, true);
 		if (!parsed.isValid()) continue;
 		parsed.month(semester === 1 ? 0 : 6).date(1);
 		return spanFor(parsed, 'semester');
@@ -349,7 +358,7 @@ export function resolvePeriodicNote(config: PeriodicConfig, path: string): Perio
 		}
 
 		if (folder !== level.folder) continue;
-		const parsed = moment(name, level.format, true);
+		const parsed = window.moment(name, level.format, true);
 		if (!parsed.isValid()) continue;
 		return spanFor(parsed, granularity);
 	}
@@ -380,7 +389,7 @@ export function periodicNotePath(
 ): string | null {
 	const level = config[granularity];
 	if (!level.enabled) return null;
-	const m = typeof date === 'string' ? moment(date, ISO, true) : moment(date);
+	const m = typeof date === 'string' ? window.moment(date, ISO, true) : window.moment(date);
 	if (!m.isValid()) return null;
 
 	let format = level.format;
@@ -396,7 +405,7 @@ export function periodicNotePath(
 
 /** The period a date belongs to at a given granularity. */
 export function periodOf(granularity: PeriodicGranularity, date: string): PeriodicRef | null {
-	const m = moment(date, ISO, true);
+	const m = window.moment(date, ISO, true);
 	if (!m.isValid()) return null;
 	return spanFor(m, granularity);
 }
