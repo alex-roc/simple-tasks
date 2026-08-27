@@ -72,8 +72,8 @@ were.
 
 ### From the community catalog
 
-Once it is listed: Settings → Community plugins → Browse → search for
-**Simple Tasks**. It is not in the catalog yet, so until then use BRAT.
+Submitted and awaiting listing. Once it is through: Settings → Community plugins
+→ Browse → search for **Simple Tasks**. Until then, BRAT is the way in.
 
 ### With BRAT
 
