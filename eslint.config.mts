@@ -1,4 +1,5 @@
 import obsidianmd from 'eslint-plugin-obsidianmd';
+import tseslint from 'typescript-eslint';
 import globals from 'globals';
 import { globalIgnores, defineConfig } from 'eslint/config';
 
@@ -50,6 +51,13 @@ export default defineConfig(
 	// (`src/i18n/en.ts`). With plain `recommended` the extraction would have quietly
 	// removed the whole UI from the linter's reach.
 	...obsidianmd.configs.recommendedWithLocalesEn,
+	// The type-aware half of what community.obsidian.md runs, which the obsidianmd
+	// config does not bring along with `recommendedWithLocalesEn`. Without it the
+	// repo linted clean while the directory's scan reported a hundred and thirty
+	// `no-unsafe-*` warnings on the plugin's public scorecard — every one of them
+	// from `moment` being untyped here, which is the sort of thing a linter is for.
+	// The floating-promise exemption for tests below must stay *after* this.
+	...tseslint.configs.recommendedTypeChecked,
 	{
 		// Proper nouns the sentence-case rules must leave alone. They have to be
 		// declared twice: the inline check and the locale-module check take their
