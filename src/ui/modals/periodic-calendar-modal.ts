@@ -1,10 +1,10 @@
 import { Modal, Setting } from 'obsidian';
 import type { App } from 'obsidian';
-import { openCalendarPlusPage } from '../../integrations/calendar-plus.ts';
+import { openPeriodicCalendarPage } from '../../integrations/periodic-calendar.ts';
 import { t } from '../../i18n/index.ts';
 
 /**
- * What the user sees when they ask for the calendar and Calendar Plus is not
+ * What the user sees when they ask for the calendar and Periodic Calendar is not
  * there.
  *
  * Deliberately **on demand only**: nothing is announced at startup. A plugin
@@ -13,7 +13,7 @@ import { t } from '../../i18n/index.ts';
  * exactly where the missing feature was requested — here, and as a status row
  * in the settings tab.
  */
-export class CalendarPlusMissingModal extends Modal {
+export class PeriodicCalendarMissingModal extends Modal {
 	constructor(app: App) {
 		super(app);
 	}
@@ -32,7 +32,7 @@ export class CalendarPlusMissingModal extends Modal {
 					.setButtonText(t('calendar.missing.install'))
 					.setCta()
 					.onClick(() => {
-						openCalendarPlusPage();
+						openPeriodicCalendarPage();
 						this.close();
 					})
 			)

@@ -7,28 +7,28 @@ import { completionDate, ownDayDate } from '../index/stats.ts';
 import { t, tCount } from '../i18n/index.ts';
 import type SimpleTasksPlugin from '../main.ts';
 import type {
-	CalendarPlusApi,
+	PeriodicCalendarApi,
 	CalendarSource,
 	CellMetadata,
 	Dot,
 	Granularity,
 	Moment,
-} from './calendar-plus-api.ts';
+} from './periodic-calendar-api.ts';
 
 /**
- * Optional wiring to **Calendar Plus**: task counts on its cells, tasks dragged
+ * Optional wiring to **Periodic Calendar**: task counts on its cells, tasks dragged
  * from the agenda onto a day, and an entry in a cell's context menu.
  *
  * Three rules shape this file.
  *
  * - **Simple Tasks works whole without it.** Nothing here is imported by the
  *   index, the views or the actions; the contract lives in a copied type file
- *   (`calendar-plus-api.ts`) and the plugin is reached only through
- *   `app.plugins.plugins['calendar-plus'].api`, guarded on `version === 1`.
- * - **Calendar Plus can arrive later.** The user may enable it after us, or
+ *   (`periodic-calendar-api.ts`) and the plugin is reached only through
+ *   `app.plugins.plugins['periodic-calendar'].api`, guarded on `version === 1`.
+ * - **Periodic Calendar can arrive later.** The user may enable it after us, or
  *   disable and re-enable it mid-session, so the check is re-run on
  *   `workspace.onLayoutReady` and on the plugin manager's own `changed` event.
- *   {@link CalendarPlusIntegration.sync} is idempotent and cheap enough to call
+ *   {@link PeriodicCalendarIntegration.sync} is idempotent and cheap enough to call
  *   from anywhere.
  * - **`getMetadata` never reads the vault.** It is called once per visible cell
  *   on every repaint. Everything it needs is precomputed in {@link TaskCounts}
@@ -37,13 +37,13 @@ import type {
  */
 
 /** Plugin id of the provider, as it appears in `app.plugins.plugins`. */
-export const CALENDAR_PLUS_ID = 'calendar-plus';
+export const PERIODIC_CALENDAR_ID = 'periodic-calendar';
 
-/** View type Calendar Plus registers. Not part of the contract — see the docs. */
-const CALENDAR_PLUS_VIEW_TYPE = 'calendar-plus';
+/** View type Periodic Calendar registers. Not part of the contract — see the docs. */
+const PERIODIC_CALENDAR_VIEW_TYPE = 'periodic-calendar';
 
 /** Obsidian deep link that opens a plugin's page in the community browser. */
-const INSTALL_URL = `obsidian://show-plugin?id=${CALENDAR_PLUS_ID}`;
+const INSTALL_URL = `obsidian://show-plugin?id=${PERIODIC_CALENDAR_ID}`;
 
 /**
  * The drag payload's own MIME type.
@@ -112,17 +112,17 @@ function readTaskDrag(evt: DragEvent): TaskDragEntry[] {
 }
 
 /**
- * The API when Calendar Plus is installed, enabled and speaking version 1.
+ * The API when Periodic Calendar is installed, enabled and speaking version 1.
  * Anything else is `null`, and `null` is a supported state, not an error.
  */
-export function getCalendarPlusApi(app: App): CalendarPlusApi | null {
+export function getPeriodicCalendarApi(app: App): PeriodicCalendarApi | null {
 	const plugins = (app as App & { plugins?: { plugins?: Record<string, unknown> } }).plugins;
-	const plugin = plugins?.plugins?.[CALENDAR_PLUS_ID] as { api?: CalendarPlusApi } | undefined;
+	const plugin = plugins?.plugins?.[PERIODIC_CALENDAR_ID] as { api?: PeriodicCalendarApi } | undefined;
 	return plugin?.api?.version === 1 ? plugin.api : null;
 }
 
 /** Opens the plugin's page in the community browser. */
-export function openCalendarPlusPage(): void {
+export function openPeriodicCalendarPage(): void {
 	window.open(INSTALL_URL);
 }
 
@@ -419,12 +419,12 @@ const REFRESH_DEBOUNCE_MS = 100;
 /** The plugin manager fires this on every enable, disable and uninstall. */
 const PLUGINS_CHANGED = 'changed';
 
-export class CalendarPlusIntegration {
+export class PeriodicCalendarIntegration {
 	private readonly plugin: SimpleTasksPlugin;
 	private readonly counts: TaskCounts;
 	private readonly source: TaskCalendarSource;
 
-	private api: CalendarPlusApi | null = null;
+	private api: PeriodicCalendarApi | null = null;
 	private unregister: (() => void) | null = null;
 
 	private readonly refreshSoon = debounce(
@@ -462,7 +462,7 @@ export class CalendarPlusIntegration {
 
 		// The unregister returned by `registerSource` is held here rather than
 		// handed straight to `plugin.register()`, because it has to be callable
-		// again whenever Calendar Plus goes away mid-session. Unloading still runs
+		// again whenever Periodic Calendar goes away mid-session. Unloading still runs
 		// it: that is what this registration is for.
 		this.plugin.register(() => {
 			this.detach();
@@ -477,7 +477,7 @@ export class CalendarPlusIntegration {
 
 		// `app.plugins` is not in the public typings, but it extends `Events` and
 		// triggers `changed` from every enable, disable and uninstall — which is
-		// how a Calendar Plus enabled after us gets picked up without a reload.
+		// how a Periodic Calendar enabled after us gets picked up without a reload.
 		const registry: unknown = (app as unknown as { plugins?: unknown }).plugins;
 		if (registry instanceof Events) {
 			this.plugin.registerEvent(
@@ -498,7 +498,7 @@ export class CalendarPlusIntegration {
 	 * the overwhelmingly common case where nothing changed.
 	 */
 	sync(): void {
-		const api = getCalendarPlusApi(this.plugin.app);
+		const api = getPeriodicCalendarApi(this.plugin.app);
 		if (api === this.api) return;
 		this.detach();
 		if (api === null) return;
@@ -515,7 +515,7 @@ export class CalendarPlusIntegration {
 	 * method was added to the contract precisely because doing it by hand means
 	 * hardcoding the view type — a string that is *not* part of the contract and
 	 * could change without a version bump. The manual route is kept as a fallback
-	 * for a Calendar Plus older than that addition: the contract version is still
+	 * for a Periodic Calendar older than that addition: the contract version is still
 	 * 1, so the version check cannot tell the two apart and only the method's
 	 * presence can.
 	 *
@@ -530,7 +530,7 @@ export class CalendarPlusIntegration {
 		this.sync();
 		const { api } = this;
 		if (api === null) return false;
-		const openView = (api as Partial<Pick<CalendarPlusApi, 'openView'>>).openView;
+		const openView = (api as Partial<Pick<PeriodicCalendarApi, 'openView'>>).openView;
 		if (typeof openView === 'function') await openView.call(api);
 		else await this.openViewByType();
 		await this.revealLeaves();
@@ -548,7 +548,7 @@ export class CalendarPlusIntegration {
 	 */
 	private async revealLeaves(): Promise<void> {
 		const { workspace } = this.plugin.app;
-		for (const leaf of workspace.getLeavesOfType(CALENDAR_PLUS_VIEW_TYPE)) {
+		for (const leaf of workspace.getLeavesOfType(PERIODIC_CALENDAR_VIEW_TYPE)) {
 			await workspace.revealLeaf(leaf);
 		}
 	}
@@ -556,10 +556,10 @@ export class CalendarPlusIntegration {
 	/** Pre-`openView()` fallback: open the leaf ourselves, by view type. */
 	private async openViewByType(): Promise<void> {
 		const { workspace } = this.plugin.app;
-		if (workspace.getLeavesOfType(CALENDAR_PLUS_VIEW_TYPE).length > 0) return;
+		if (workspace.getLeavesOfType(PERIODIC_CALENDAR_VIEW_TYPE).length > 0) return;
 		const leaf = workspace.getRightLeaf(false);
 		if (leaf === null) return;
-		await leaf.setViewState({ type: CALENDAR_PLUS_VIEW_TYPE, active: true });
+		await leaf.setViewState({ type: PERIODIC_CALENDAR_VIEW_TYPE, active: true });
 	}
 
 	private detach(): void {

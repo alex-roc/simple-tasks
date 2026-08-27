@@ -6,7 +6,7 @@ import { cloneDefaultStatuses, sanitizeStatuses } from './domain/statuses.ts';
 import type { TaskWriteSyntax } from './domain/serialize-line.ts';
 import type { TaskStatus } from './domain/task.ts';
 import { t } from './i18n/index.ts';
-import { openCalendarPlusPage } from './integrations/calendar-plus.ts';
+import { openPeriodicCalendarPage } from './integrations/periodic-calendar.ts';
 import type SimpleTasksPlugin from './main.ts';
 
 export interface SimpleTasksSettings {
@@ -34,7 +34,7 @@ export interface SimpleTasksSettings {
 	/** Whether hovering a task line in the editor opens the actions popover. */
 	editorHoverPopover: boolean;
 	/**
-	 * How the Calendar Plus integration draws a period's tasks.
+	 * How the Periodic Calendar integration draws a period's tasks.
 	 *
 	 * `intensity` contributes the number of completions and lets the calendar
 	 * shade the cell, which is the default and costs the cell no room.
@@ -75,7 +75,7 @@ export const DEFAULT_SETTINGS: SimpleTasksSettings = {
 	heatmapShowTopTags: false,
 };
 
-/** What Simple Tasks contributes to a Calendar Plus cell. */
+/** What Simple Tasks contributes to a Periodic Calendar cell. */
 export type CalendarDisplay = 'intensity' | 'dots';
 
 const RESCHEDULE_FIELDS: readonly ReschedulableField[] = ['due', 'scheduled', 'start'];
@@ -389,7 +389,7 @@ export class SimpleTasksSettingTab extends PluginSettingTab {
 	 * the one thing a user needs to know is whether the two plugins found each
 	 * other. It is re-read every time the tab is rendered, and the integration
 	 * re-checks itself on the plugin manager's `changed` event, so enabling
-	 * Calendar Plus and reopening the tab shows it connected.
+	 * Periodic Calendar and reopening the tab shows it connected.
 	 */
 	private renderCalendar(containerEl: HTMLElement): void {
 		new Setting(containerEl)
@@ -404,7 +404,7 @@ export class SimpleTasksSettingTab extends PluginSettingTab {
 		if (!connected) {
 			row.addButton((button) =>
 				button.setButtonText(t('calendar.missing.install')).onClick(() => {
-					openCalendarPlusPage();
+					openPeriodicCalendarPage();
 				})
 			);
 			// Nothing else is worth offering: a choice about how the calendar draws

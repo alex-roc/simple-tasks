@@ -5,7 +5,7 @@ import { openTaskAt } from '../../actions/open-task.ts';
 import { PRIORITY_EMOJI } from '../../domain/parse-line.ts';
 import type { Task } from '../../domain/task.ts';
 import { t } from '../../i18n/index.ts';
-import { setTaskDragData } from '../../integrations/calendar-plus.ts';
+import { setTaskDragData } from '../../integrations/periodic-calendar.ts';
 import type SimpleTasksPlugin from '../../main.ts';
 import { HOVER_DELAY_MS, TaskPopover } from '../popover/task-popover.ts';
 
@@ -76,7 +76,7 @@ import { HOVER_DELAY_MS, TaskPopover } from '../popover/task-popover.ts';
  * - **Any plain press clears the selection** — on a row, or on the empty space of
  *   the view. That is the way out, and it costs no button.
  * - **A press on a row that is already selected changes nothing**, so it can start
- *   the native drag that carries the selection onto a Calendar Plus day. Only
+ *   the native drag that carries the selection onto a Periodic Calendar day. Only
  *   selected rows are `draggable`, which is also what keeps the paint gesture from
  *   turning into a drag halfway through.
  * - **`Cmd`/`Ctrl` + click** toggles a single row, for adding the odd one out
@@ -107,7 +107,7 @@ export interface TaskRowListOptions {
 	 * variables, the Bases one is a compact square.
 	 */
 	prefix: string;
-	/** Whether task rows can be dragged onto a Calendar Plus day. */
+	/** Whether task rows can be dragged onto a Periodic Calendar day. */
 	draggable: boolean;
 	/** Whether a row names the note it came from. Read at render time. */
 	showSource: () => boolean;

@@ -44,7 +44,7 @@ What the hover popover and the agenda do when they write a line.
   is no hover on a phone, where the ⋮ button at the end of the task line the cursor
   is on is the whole route instead. Turn it off to use the **Show task actions**
   command; the popover in the plugin's own views is unaffected.
-- **How the calendar shows tasks** — only shown when Calendar Plus is connected.
+- **How the calendar shows tasks** — only shown when Periodic Calendar is connected.
   *Background intensity* (default) shades each day by how much you completed in it;
   *Dots* marks completed and still-open tasks the way the original Calendar plugin
   did. Hovering a day gives both figures either way.
@@ -89,10 +89,10 @@ configuration, which is the only reason these two settings exist.
 - **Filename format** — a moment format in which `S` stands for the semester,
   1 or 2. Defaults to `YYYY-[S]S`.
 
-## Calendar Plus
+## Periodic Calendar
 
 Not a setting but a status row: whether Simple Tasks and the optional
-[Calendar Plus](commands-and-cli.md#with-calendar-plus) plugin found each other.
+[Periodic Calendar](commands-and-cli.md#with-periodic-calendar) plugin found each other.
 It is re-read every time the tab is opened, so enabling that plugin and coming
 back shows it connected. When it is missing, a button opens its page in the
 community plugin browser.

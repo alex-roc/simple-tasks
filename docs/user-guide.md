@@ -244,7 +244,7 @@ Three details worth knowing:
   while a selection exists elsewhere. The popover always acts on what you are
   pointing at. The popover never opens over a line without a checkbox, so hover
   one of the block's tasks rather than its title.
-- **A selected agenda row can be dragged onto a Calendar Plus day**, and it takes
+- **A selected agenda row can be dragged onto a Periodic Calendar day**, and it takes
   the whole selection with it. That is also why only selected rows are draggable
   there: a press on an unselected row paints, a press on a selected one drags, and
   one movement cannot mean both.
@@ -330,17 +330,17 @@ The interface is available in English and Spanish and follows Obsidian's own
 language setting — there is nothing to choose, and anything not translated falls
 back to English.
 
-## With Calendar Plus
+## With Periodic Calendar
 
-Everything above works on its own. When the **Calendar Plus** plugin is
+Everything above works on its own. When the **Periodic Calendar** plugin is
 installed, Simple Tasks registers itself as one of its sources: **every day is
 shaded by how many tasks you completed in it**, so the calendar becomes a second
 heatmap in the panel you already have open. Prefer the dots of the original
 Calendar? *How the calendar shows tasks*, in the settings, switches to those. It
 also accepts tasks dragged from the agenda onto a day — the whole selection, if you
 painted one — and adds a context-menu entry that opens the agenda for that day. See
-[commands-and-cli.md](commands-and-cli.md#with-calendar-plus) for the detail.
+[commands-and-cli.md](commands-and-cli.md#with-periodic-calendar) for the detail.
 
-Calendar Plus is entirely optional: nothing is announced at startup when it is
+Periodic Calendar is entirely optional: nothing is announced at startup when it is
 missing, and the settings tab carries a status row saying whether the two found
 each other.

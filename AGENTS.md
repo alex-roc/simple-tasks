@@ -57,7 +57,7 @@ src/
   ui/popover/        # one popover, two triggers
   ui/components/     # task row (delegated), heatmap grid, per-render scope
   ui/modals/         # date, note+heading and tag pickers
-  integrations/      # optional cross-plugin wiring (Calendar Plus)
+  integrations/      # optional cross-plugin wiring (Periodic Calendar)
   cli/               # registerCliHandler handlers
 ```
 
@@ -216,7 +216,7 @@ Details in `dev-docs/heatmap-and-stats.md`.
 `integrations/` is the only place allowed to know another plugin exists, and
 everything in it is optional by construction:
 
-- **The contract is a copied file.** `integrations/calendar-plus-api.ts` is a
+- **The contract is a copied file.** `integrations/periodic-calendar-api.ts` is a
   verbatim copy of the provider's published types. Never import from another
   repository — the plugin must build, lint and test where that plugin is not
   installed.
@@ -226,7 +226,7 @@ everything in it is optional by construction:
   notice at startup.
 - **The provider may arrive later.** Re-check on `workspace.onLayoutReady` and
   on the plugin manager's `changed` event; keep the re-check idempotent and
-  cheap. Details in `dev-docs/calendar-plus-integration.md`.
+  cheap. Details in `dev-docs/periodic-calendar-integration.md`.
 
 ## Persisting to `data.json`
 

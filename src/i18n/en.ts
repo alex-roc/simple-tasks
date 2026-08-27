@@ -57,12 +57,12 @@ const en = {
 	'calendar.openCount_other': '{count} tasks open',
 	'calendar.menu.showDay': 'Show the tasks of this day',
 	'calendar.menu.showPeriod': 'Show the tasks of {date}',
-	'calendar.missing.title': 'Calendar Plus is not installed',
+	'calendar.missing.title': 'Periodic Calendar is not installed',
 	'calendar.missing.body':
-		'Simple Tasks can put its task counts on the Calendar Plus calendar, accept tasks dragged from the agenda onto a day, and add an entry to a day’s context menu. That needs the Calendar Plus plugin.',
+		'Simple Tasks can put its task counts on the Periodic Calendar calendar, accept tasks dragged from the agenda onto a day, and add an entry to a day’s context menu. That needs the Periodic Calendar plugin.',
 	'calendar.missing.note':
 		'Everything else keeps working without it: the heatmap, the agenda, the statistics and the task actions.',
-	'calendar.missing.install': 'Install Calendar Plus',
+	'calendar.missing.install': 'Install Periodic Calendar',
 	'calendar.nothingToShow': 'No task carries a date yet, so the calendar has nothing to show.',
 
 	/* ------------------------------------------------------------------- stats */
@@ -275,7 +275,7 @@ const en = {
 	'settings.semesterFormat.name': 'Filename format',
 	'settings.semesterFormat.desc':
 		'A moment format in which the letter s stands for the semester, 1 or 2.',
-	'settings.calendar.name': 'Calendar Plus',
+	'settings.calendar.name': 'Periodic Calendar',
 	'settings.calendar.desc':
 		'An optional integration. When that plugin is present, its calendar shows the tasks of each period and accepts tasks dragged onto a day.',
 	'settings.calendar.status': 'Status',

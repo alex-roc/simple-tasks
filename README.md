@@ -121,18 +121,18 @@ Obsidian **1.10.0** or newer, desktop or mobile. The three terminal commands
 additionally need Obsidian **1.12.2**, where the CLI gained plugin commands;
 capabilities newer than 1.10.0 are probed, so nothing breaks without them.
 
-## Optional: Calendar Plus
+## Optional: Periodic Calendar
 
-Everything works on its own. When the **Calendar Plus** plugin is installed,
+Everything works on its own. When the **Periodic Calendar** plugin is installed,
 Simple Tasks registers itself as one of its sources: **every day is shaded by how
 much you closed in its note**, so the calendar becomes a second heatmap in the
 sidebar you already have open, with the figures on hover — dots instead of the
 shading if you prefer them. The month, quarter and year buttons add up the notes
 of those periods too. It also accepts tasks dragged from the agenda onto a day, and gains
 a context-menu entry that opens the agenda for that day. Nothing is announced at
-startup when it is absent — [details](docs/commands-and-cli.md#with-calendar-plus).
+startup when it is absent — [details](docs/commands-and-cli.md#with-periodic-calendar).
 
-<!-- SCREENSHOT 4 — optional, only if Calendar Plus is installed: the calendar with
+<!-- SCREENSHOT 4 — optional, only if Periodic Calendar is installed: the calendar with
      the cells shaded by completions, mid-drag of a task onto a day. -->
 
 ## Theming

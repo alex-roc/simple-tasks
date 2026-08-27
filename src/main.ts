@@ -10,14 +10,14 @@ import type { ReschedulableField } from './actions/reschedule.ts';
 import { registerCliCommands } from './cli/index.ts';
 import type { PeriodicGranularity, PeriodicLevel } from './domain/periodic.ts';
 import type { Task, TaskPriority } from './domain/task.ts';
-import { CalendarPlusIntegration } from './integrations/calendar-plus.ts';
+import { PeriodicCalendarIntegration } from './integrations/periodic-calendar.ts';
 import { TaskIndexer } from './index/indexer.ts';
 import { StatsCache } from './index/stats.ts';
 import { INDEX_CHANGED, TaskIndex } from './index/task-index.ts';
 import { t } from './i18n/index.ts';
 import { DEFAULT_SETTINGS, SimpleTasksSettingTab, normalizeSettings } from './settings.ts';
 import type { SimpleTasksSettings } from './settings.ts';
-import { CalendarPlusMissingModal } from './ui/modals/calendar-plus-modal.ts';
+import { PeriodicCalendarMissingModal } from './ui/modals/periodic-calendar-modal.ts';
 import { DatePickerModal } from './ui/modals/date-modal.ts';
 import { taskHoverExtension } from './ui/popover/editor-hover.ts';
 import { taskLineActionsExtension } from './ui/popover/editor-line-actions.ts';
@@ -83,10 +83,10 @@ export default class SimpleTasksPlugin extends Plugin {
 	};
 
 	/**
-	 * Optional wiring to Calendar Plus. Always constructed: it is the thing that
+	 * Optional wiring to Periodic Calendar. Always constructed: it is the thing that
 	 * knows whether the other plugin is there, and the settings tab asks it.
 	 */
-	readonly calendar = new CalendarPlusIntegration(this);
+	readonly calendar = new PeriodicCalendarIntegration(this);
 
 	private indexer: TaskIndexer | null = null;
 
@@ -282,7 +282,7 @@ export default class SimpleTasksPlugin extends Plugin {
 	 */
 	private async showInCalendar(): Promise<void> {
 		if (!(await this.calendar.revealToday())) {
-			new CalendarPlusMissingModal(this.app).open();
+			new PeriodicCalendarMissingModal(this.app).open();
 			return;
 		}
 		// A cell is drawn from the periodic note a task lives in, or from a `✅` on

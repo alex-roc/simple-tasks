@@ -959,8 +959,8 @@ button.simple-tasks-agenda-group-name:focus-visible {
 }
 
 /*
- * A task row is draggable onto a Calendar Plus day. Only the feedback lives
- * here: the payload and its MIME type are in `integrations/calendar-plus.ts`.
+ * A task row is draggable onto a Periodic Calendar day. Only the feedback lives
+ * here: the payload and its MIME type are in `integrations/periodic-calendar.ts`.
  */
 .simple-tasks-agenda-row[draggable='true'] {
 	cursor: grab;

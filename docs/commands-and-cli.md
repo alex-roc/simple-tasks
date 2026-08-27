@@ -13,7 +13,7 @@ Four commands are always available:
 | **Open heatmap** | Opens the heatmap view. |
 | **Open agenda** | Opens the agenda view on the day it last showed. |
 | **Open today's agenda** | Opens the agenda on today. |
-| **Show tasks on the calendar** | Opens the Calendar Plus calendar with the completions shading it, bringing it to the front even if it was already open behind another sidebar tab. Without Calendar Plus installed it explains what it would add instead of failing. |
+| **Show tasks on the calendar** | Opens the Periodic Calendar calendar with the completions shading it, bringing it to the front even if it was already open behind another sidebar tab. Without Periodic Calendar installed it explains what it would add instead of failing. |
 
 Four more appear **only when the cursor is on a task line**, and are absent from
 the palette otherwise:
@@ -94,9 +94,9 @@ obsidian simple-tasks:move task="Projects/report.md:13" note="Inbox.md" heading=
 Add `vault="<name>"` as the first parameter to pick a vault; without it the CLI
 uses the last one that had focus.
 
-## With Calendar Plus
+## With Periodic Calendar
 
-When the **Calendar Plus** plugin is installed and enabled, Simple Tasks
+When the **Periodic Calendar** plugin is installed and enabled, Simple Tasks
 registers itself as one of its sources and the calendar gains:
 
 - **A shade on every day** — how many tasks you completed there, scaled against
@@ -113,7 +113,7 @@ registers itself as one of its sources and the calendar gains:
   with open tasks also get a `simple-tasks-has-open` class, if you want to mark
   them from a CSS snippet.
 
-  The shade needs Calendar Plus's **Values from sources** setting on *background
+  The shade needs Periodic Calendar's **Values from sources** setting on *background
   intensity*, which is its default, and the figures need its hover on *cell
   summary*, also the default. On *hidden* the source's contribution disappears
   unless you switch to dots.
@@ -126,7 +126,7 @@ registers itself as one of its sources and the calendar gains:
   agenda on that date.
 
 The integration is checked at load and re-checked when plugins are enabled or
-disabled, so installing Calendar Plus afterwards does not need a reload of
+disabled, so installing Periodic Calendar afterwards does not need a reload of
 Simple Tasks. When it is absent, nothing is announced at startup: the
 **Show tasks on the calendar** command explains what it would add, and the
 settings tab carries a status row.

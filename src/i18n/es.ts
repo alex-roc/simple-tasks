@@ -49,12 +49,12 @@ const es: Partial<Translations> = {
 	'calendar.openCount_other': '{count} tareas pendientes',
 	'calendar.menu.showDay': 'Ver las tareas de este día',
 	'calendar.menu.showPeriod': 'Ver las tareas del {date}',
-	'calendar.missing.title': 'Calendar Plus no está instalado',
+	'calendar.missing.title': 'Periodic Calendar no está instalado',
 	'calendar.missing.body':
-		'Simple Tasks puede mostrar sus tareas en el calendario de Calendar Plus, aceptar tareas arrastradas desde la agenda hasta un día y añadir una entrada al menú contextual de cada día. Para eso hace falta el plugin Calendar Plus.',
+		'Simple Tasks puede mostrar sus tareas en el calendario de Periodic Calendar, aceptar tareas arrastradas desde la agenda hasta un día y añadir una entrada al menú contextual de cada día. Para eso hace falta el plugin Periodic Calendar.',
 	'calendar.missing.note':
 		'Todo lo demás sigue funcionando sin él: el mapa de calor, la agenda, las estadísticas y las acciones sobre las tareas.',
-	'calendar.missing.install': 'Instalar Calendar Plus',
+	'calendar.missing.install': 'Instalar Periodic Calendar',
 	'calendar.nothingToShow':
 		'Todavía ninguna tarea tiene fecha, así que el calendario no tiene nada que mostrar.',
 
@@ -270,7 +270,7 @@ const es: Partial<Translations> = {
 	'settings.semesterFormat.name': 'Formato del nombre de archivo',
 	'settings.semesterFormat.desc':
 		'Un formato de moment en el que la letra s representa el semestre, 1 o 2.',
-	'settings.calendar.name': 'Calendar Plus',
+	'settings.calendar.name': 'Periodic Calendar',
 	'settings.calendar.desc':
 		'Una integración opcional. Cuando ese plugin está presente, su calendario muestra las tareas de cada periodo y acepta tareas arrastradas hasta un día.',
 	'settings.calendar.status': 'Estado',

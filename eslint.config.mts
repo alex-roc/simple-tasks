@@ -6,7 +6,7 @@ import { globalIgnores, defineConfig } from 'eslint/config';
 const BRANDS = [
 	'Obsidian',
 	'Simple Tasks',
-	'Calendar Plus',
+	'Periodic Calendar',
 	'Style Settings',
 	'Bases',
 	// Not brands but the same problem: tokens a CLI user types verbatim, which the

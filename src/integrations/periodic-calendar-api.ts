@@ -1,9 +1,9 @@
 /**
- * Calendar Plus public API — **a verbatim copy** of `src/api/types.ts` from the
- * Calendar Plus repository, taken at contract version 1.
+ * Periodic Calendar public API — **a verbatim copy** of `src/api/types.ts` from the
+ * Periodic Calendar repository, taken at contract version 1.
  *
  * It is copied rather than imported on purpose: Simple Tasks must build, lint
- * and run with Calendar Plus absent from the machine, exactly like any other
+ * and run with Periodic Calendar absent from the machine, exactly like any other
  * third-party consumer. Nothing in `src/` may import from the other repo.
  *
  * Re-copy the file wholesale when the contract version changes; do not edit it
@@ -122,7 +122,7 @@ export interface CalendarSource {
 }
 
 /** Events a consumer can subscribe to. */
-export interface CalendarPlusEvents {
+export interface PeriodicCalendarEvents {
 	/**
 	 * A cell was activated, by mouse or by keyboard. Fires for every
 	 * granularity, not only days — check `granularity`.
@@ -137,7 +137,7 @@ export interface CalendarPlusEvents {
 	'date-drop': (date: Moment, granularity: Granularity) => void;
 }
 
-export interface CalendarPlusApi {
+export interface PeriodicCalendarApi {
 	/** Contract version. Check it before using anything below. */
 	readonly version: 1;
 
@@ -195,8 +195,8 @@ export interface CalendarPlusApi {
 	getDisplayedMonth(): Moment;
 
 	/** Subscribe to a calendar event. Returns an unsubscribe function. */
-	on<K extends keyof CalendarPlusEvents>(
+	on<K extends keyof PeriodicCalendarEvents>(
 		event: K,
-		callback: CalendarPlusEvents[K]
+		callback: PeriodicCalendarEvents[K]
 	): () => void;
 }
