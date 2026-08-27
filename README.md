@@ -72,19 +72,23 @@ were.
 
 ### From the community catalog
 
-Submitted and awaiting listing. Once it is through: Settings → Community plugins
-→ Browse → search for **Simple Tasks**. Until then, BRAT is the way in.
+**Settings → Community plugins → Browse → "Simple Tasks" → Install.** That is the
+way in for everyone, and updates arrive through Obsidian like any other plugin.
+The listing is at
+[community.obsidian.md/plugins/simple-tasks](https://community.obsidian.md/plugins/simple-tasks).
 
-### With BRAT
+### With BRAT, for the version that is not out yet
 
-Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, then run
-**BRAT: Add a beta plugin for testing** and enter:
+Only if you want what is on `main` before it is released. Install the
+[BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, run **BRAT: Add a
+beta plugin for testing** and enter:
 
 ```
 alex-roc/simple-tasks
 ```
 
-BRAT installs the latest release and keeps it updated.
+Do not run both at once: BRAT and the catalog install into the same folder, and
+whichever updated last is what you get.
 
 ### Manually
 
