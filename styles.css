@@ -133,6 +133,49 @@ body.is-mobile .simple-tasks-bases {
 	--st-touch-target: 44px;
 }
 
+/*
+ * The button reset.
+ *
+ * Every control below is a real `<button>` — for the keyboard, for the screen
+ * reader, for the focus ring — and none of them should look like one. That used
+ * to be `all: unset` in each rule, which the community directory's CSS linter
+ * flags: `all` takes every property with it, including ones a future Obsidian
+ * may rely on, and it is unpredictable enough that the scan reports it on the
+ * plugin's public scorecard.
+ *
+ * So the reset is explicit and lives once, here, above the rules it clears —
+ * same specificity, so whatever each rule declares afterwards wins. Only what
+ * a browser's default button stylesheet actually sets is listed; `display` and
+ * `cursor` are deliberately absent, since every one of these rules declares its
+ * own and the reset has no business guessing.
+ */
+.simple-tasks-heatmap-cell,
+.simple-tasks-line-actions,
+.simple-tasks-popover-button,
+.simple-tasks-agenda-icon,
+.simple-tasks-agenda-date,
+.simple-tasks-agenda-selection-button,
+button.simple-tasks-agenda-group-name,
+.simple-tasks-agenda-check,
+.simple-tasks-bases-check {
+	appearance: none;
+	margin: 0;
+	padding: 0;
+	border: none;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+	color: inherit;
+	/* `font: inherit` is what `all: unset` did to the inheritable half of the
+	   font shorthand; without it a button falls back to the browser's own. */
+	font: inherit;
+	letter-spacing: inherit;
+	line-height: inherit;
+	text-align: inherit;
+	text-transform: none;
+	white-space: normal;
+}
+
 /* Single-character input for a status symbol, in the settings tab. */
 .simple-tasks-symbol-input {
 	width: var(--size-4-16);
@@ -242,7 +285,6 @@ body.is-mobile .simple-tasks-bases {
 }
 
 .simple-tasks-heatmap-cell {
-	all: unset;
 	box-sizing: border-box;
 	display: block;
 	width: var(--st-heatmap-cell-size);
@@ -517,7 +559,6 @@ body.is-mobile .simple-tasks-bases {
  * of our views, so the floor is declared here too.
  */
 .simple-tasks-line-actions {
-	all: unset;
 	box-sizing: border-box;
 	position: relative;
 	display: inline-flex;
@@ -621,7 +662,6 @@ body.is-mobile .simple-tasks-bases {
 }
 
 .simple-tasks-popover-button {
-	all: unset;
 	box-sizing: border-box;
 	display: inline-flex;
 	align-items: center;
@@ -708,7 +748,6 @@ body.is-mobile .simple-tasks-bases {
 }
 
 .simple-tasks-agenda-icon {
-	all: unset;
 	box-sizing: border-box;
 	display: inline-flex;
 	align-items: center;
@@ -736,7 +775,6 @@ body.is-mobile .simple-tasks-bases {
 }
 
 .simple-tasks-agenda-date {
-	all: unset;
 	box-sizing: border-box;
 	padding: 0 var(--size-2-2);
 	min-height: var(--input-height);
@@ -819,7 +857,6 @@ body.is-mobile .simple-tasks-bases {
 }
 
 .simple-tasks-agenda-selection-button {
-	all: unset;
 	box-sizing: border-box;
 	display: inline-flex;
 	align-items: center;
@@ -881,13 +918,12 @@ body.is-mobile .simple-tasks-bases {
 }
 
 /*
- * Grouped by note the title is a real `<button>` that opens it. `all: unset`
- * strips the browser's chrome so it still reads as the section title, and the
- * affordances are added back deliberately — only here, so a tag or a status
- * title never looks pressable when it is not.
+ * Grouped by note the title is a real `<button>` that opens it. The shared
+ * button reset at the top of this file strips the browser's chrome so it still
+ * reads as the section title, and the affordances are added back deliberately —
+ * only here, so a tag or a status title never looks pressable when it is not.
  */
 button.simple-tasks-agenda-group-name {
-	all: unset;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	text-transform: uppercase;
@@ -994,7 +1030,6 @@ button.simple-tasks-agenda-group-name:focus-visible {
 }
 
 .simple-tasks-agenda-check {
-	all: unset;
 	box-sizing: border-box;
 	flex: 0 0 auto;
 	display: inline-flex;
@@ -1234,7 +1269,6 @@ button.simple-tasks-agenda-group-name:focus-visible {
 }
 
 .simple-tasks-bases-check {
-	all: unset;
 	box-sizing: border-box;
 	flex: 0 0 auto;
 	display: flex;

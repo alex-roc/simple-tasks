@@ -11,9 +11,6 @@ project headings, nested in an outline — and want to see and act on them witho
 moving them anywhere else. Disable the plugin and your notes are exactly as they
 were.
 
-<!-- SCREENSHOT 1 — hero image, widest impression first: the heatmap view open in
-     the main pane with a year of activity and the level line visible. -->
-
 ## What it does
 
 - **Daily agenda** — a sidebar view with everything that belongs to a day: its
@@ -71,12 +68,6 @@ were.
 - **English and Spanish** — the interface follows Obsidian's own language
   setting.
 
-<!-- SCREENSHOT 2 — the agenda view in the sidebar, grouped by project, with the
-     progress counters on the group titles and a nested subtask visible. -->
-
-<!-- SCREENSHOT 3 — the hover popover open over a task line in a note (live
-     preview), showing the status, priority, move, due and tag sections. -->
-
 ## Installation
 
 ### From the community catalog
@@ -131,9 +122,6 @@ shading if you prefer them. The month, quarter and year buttons add up the notes
 of those periods too. It also accepts tasks dragged from the agenda onto a day, and gains
 a context-menu entry that opens the agenda for that day. Nothing is announced at
 startup when it is absent — [details](docs/commands-and-cli.md#with-periodic-calendar).
-
-<!-- SCREENSHOT 4 — optional, only if Periodic Calendar is installed: the calendar with
-     the cells shaded by completions, mid-drag of a task onto a day. -->
 
 ## Theming
 
