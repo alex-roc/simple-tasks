@@ -24,6 +24,11 @@ were.
 - **Completion heatmap** — a year at a glance, one cell per day. Click a day to
   open its agenda. Streak cards, a summary and your top tags are each a toggle,
   so the view holds what you want to look at and nothing else.
+- **Figures you can check by opening a note** — a day counts the tasks completed
+  in that day's own note, plus anything whose line carries a `✅ date`. The plugin
+  keeps no record of its own and never guesses a date: if your markdown does not
+  say when a task closed, no day claims it. `data.json` holds your settings and
+  nothing else.
 - **Hover actions** — one popover on any task, in the plugin's views *and* over
   task lines in a note: change status, set a priority, add or remove tags, set a
   due date, or move the task — with its whole subtree — to another day, note or
@@ -119,9 +124,10 @@ capabilities newer than 1.10.0 are probed, so nothing breaks without them.
 
 Everything works on its own. When the **Calendar Plus** plugin is installed,
 Simple Tasks registers itself as one of its sources: **every day is shaded by how
-much you completed in it**, so the calendar becomes a second heatmap in the sidebar
-you already have open, with the figures on hover — dots instead of the shading if
-you prefer them. It also accepts tasks dragged from the agenda onto a day, and gains
+much you closed in its note**, so the calendar becomes a second heatmap in the
+sidebar you already have open, with the figures on hover — dots instead of the
+shading if you prefer them. The month, quarter and year buttons add up the notes
+of those periods too. It also accepts tasks dragged from the agenda onto a day, and gains
 a context-menu entry that opens the agenda for that day. Nothing is announced at
 startup when it is absent — [details](docs/commands-and-cli.md#with-calendar-plus).
 

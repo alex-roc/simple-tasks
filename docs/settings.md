@@ -99,5 +99,9 @@ community plugin browser.
 
 ## Where the settings are stored
 
-In the plugin's own `data.json`, alongside the completion log described in the
-[user guide](user-guide.md#completion-dates). Nothing is written into your notes.
+In the plugin's own `data.json`, which holds **nothing but the settings** —
+no task data, no dates, no cache. Every figure the plugin shows is derived from
+your notes each time, so deleting that file loses your preferences and nothing
+else. Nothing is written into your notes either; see
+[completion dates](user-guide.md#completion-dates) for what that costs and why it
+is the right trade.

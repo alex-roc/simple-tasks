@@ -248,33 +248,45 @@ to a line it cannot identify.
 
 ## Completion dates
 
-**The plugin never adds a completion date to your markdown** unless the line
-already carries that syntax. To know which day a task closed it uses, in order:
+**The plugin never adds a completion date to your markdown**, and it never stores
+one of its own either. A day comes from the vault or from nowhere. There are
+exactly two ways a completed task gets a day:
 
-1. the completion date written on the line, if it has one;
-2. the date of the periodic note containing the task — which is why a
+1. **a completion date written on the line** (`✅ 2026-01-31`), if it has one —
+   the plugin reads it, and refreshes it when the task is completed again, but
+   only on lines that already used that syntax;
+2. **the task living in that day's own daily note** — which is why a
    long-standing `Daily/` folder shows up in the heatmap from the first day you
-   enable the plugin, with no migration;
-3. its own completion log, kept in the plugin's `data.json` and recorded when it
-   observes a task change to a completed status. This covers the tasks that live
-   outside periodic notes.
+   enable the plugin, with no migration.
 
-Only tasks with a date precise to the day shade the heatmap. Tasks from weekly
-or monthly notes count in the totals but do not invent activity on the 1st of
-the month.
+Anything else has **no completion day** and appears in no cell of the heatmap or
+the calendar. That means a task ticked in a project note, and a task in a weekly
+or monthly note — the latter would otherwise invent activity on the 1st of the
+month. Those tasks still count everywhere a day is not involved: totals, XP, the
+agenda, the Bases view.
 
-### A day counts what closed that day, wherever it lives
+### Why the plugin does not guess
 
-This is worth stating plainly, because a figure that looks wrong usually is not.
-The heatmap cell for a day — and the shading Calendar Plus draws on it — counts
-**every task completed that day**, not the tasks of that day's note. A task
-finished in a project note today shades today. So a daily note with four open
-tasks can perfectly well sit under a tooltip that says "3 completed · 4 open": the
-three closed elsewhere, the four open here.
+Earlier versions kept a third source: a log in `data.json` recording the day the
+plugin first *saw* each task as completed. It is gone, and the reason is worth
+knowing, because it produced figures that were plainly false.
 
-Both tooltips say so when it applies — "3 of them closed in other notes" — so the
-figure never has to be reverse-engineered. If you want to know *which* ones,
-`simple-tasks:today date=YYYY-MM-DD` lists them with their notes.
+Observation is not evidence. A task can turn up already completed for reasons
+that have nothing to do with today — a note synced in from another device, a line
+whose text you edited, a read of the file that disagreed with Obsidian's cache.
+Every one of those was recorded as "completed today". In a real vault that meant
+opening an old project note could file **years** of finished work onto a single
+day: one day showing 208 completions next to two open tasks.
+
+So the rule is now: if your markdown does not say when a task closed, nobody
+knows, and the heatmap says nothing rather than something wrong. A day cell
+counts the tasks of that day's note — which is exactly what you see when you open
+it. Upgrading deletes the old log from `data.json`; the false dates disappear with
+it, and no note of yours is touched.
+
+If you want the extra precision, write the dates: any line that carries a `✅` is
+counted on that date wherever it lives, so a task closed in a project note can
+still shade its day when you say so.
 
 ### How soon it updates
 
@@ -293,8 +305,8 @@ view — writes the note immediately, so those are the fast path.
 theme in light and dark mode, whichever theme you use.
 
 With the **Style Settings** plugin installed you also get controls for the
-heatmap's colour, cell size, cell gap and density, and for the colour, spread
-and size of the completion particles. Nothing about that is required.
+heatmap's colour, cell size, cell gap, density and roundness. Nothing about that
+is required.
 
 ## Language
 

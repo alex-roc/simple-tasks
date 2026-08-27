@@ -65,7 +65,7 @@ Capabilities newer than `minAppVersion` (1.10.0) are **probed, never assumed**:
 `'registerBasesView' in this` and, for `registerCliHandler` (1.12.2), a locally
 declared interface — writing the method name directly makes
 `obsidianmd/no-unsupported-api` an error that cannot be silenced inline. Details
-in `dev-docs/celebration-bases-cli.md`.
+in `dev-docs/bases-and-cli.md`.
 
 Rules that matter here:
 
@@ -108,23 +108,9 @@ trigger inherits it for free.
 
 The other way is **the editor**, and no code of ours runs on it: clicking the
 native checkbox in live preview or reading view, or typing the `x` by hand, is
-Obsidian writing the line. The only thing that sees it is
-`index/indexer.ts:trackCompletions()`, which already diffs each note against the
-previous snapshot to feed the completion log. **Reuse that diff; never add a
-second detector.** Two rules hold it together:
-
-- The diff covers every task, the log still records only the tasks it can be
-  responsible for. Widening one without the other is what would start writing
-  dates for tasks that already have better ones.
-- `seeding` plus `previous === null` is what keeps the initial scan silent. A
-  vault with thousands of completed tasks re-scans on every load and on every
-  settings change that rebuilds the index; anything hooked to a transition
-  inherits those guards or it fires 1 486 times at startup.
-
-Both hooks reach `ui/celebrate.ts`, and `domain/celebrate.ts:CompletionLedger`
-is what makes one completion get exactly one verdict when both see it. What
-counts as finished is decided in `domain/celebrate.ts`: a parent whose subtasks
-are still open closes nothing, so it is not a completion worth marking.
+Obsidian writing the line. Nothing observes that, on purpose — see the next
+section. If a feature ever needs to know, it re-derives from the index after the
+`changed` event; it must not accumulate state from what it saw.
 
 ## The task model
 
@@ -195,24 +181,28 @@ Four binding rules; how the module is built, and why the eslint config uses
   key. Sentence case in both.
 - **Command ids are never translated**, only their `name`.
 
-## Completion dates
+## Completion dates: from the vault or from nowhere
 
-The plugin never writes a completion date into the user's markdown unless the
-line already carries that syntax. Date resolution order:
+`index/stats.ts:completionDate()` is the single answer to "what day did this
+close", and it has exactly two sources: a completion date written on the line,
+and the task living in that day's own daily note. Everything else returns `null`
+and is counted on no day at all.
 
-1. A completion date written on the line, if present.
-2. The date of the periodic note containing the task (`Cronos/Diario/YYYY-MM-DD.md`).
-3. The plugin's own completion log in `data.json`, recorded when it observes a
-   task transition to a done status.
+**Never date a completion by observing it.** Version 0.2.0 kept a log in
+`data.json` of the day it first saw each task completed, keyed by
+`path::ordinal::text`. It was removed after it filed 212 completions spanning
+years onto one day in a real vault. The failure is structural, not a bug to fix:
+a task turns up "already completed" whenever its key shifts — text edited, note
+synced from another device, a `cachedRead` that disagreed with the offsets in
+`metadataCache` — and none of those mean today. A guard against the initial scan
+does not help, because every one of those events happens long after it.
 
-The log's key carries the note path, so **anything that changes a task's path
-has to carry its entry across**, or the "appeared already completed" rule will
-re-date the completion to today. A rename is handled by the indexer
-(`CompletionLog.renamePath`), a move by `actions/move-task.ts`. Any future
-operation that relocates a task owes the same.
+The rule this leaves: **the plugin owns no fact the vault does not state.** A
+missing day is a correct answer. Anything that wants more precision writes the
+date into the markdown, which `cycle-status.ts` only ever does on lines that
+already carry that syntax.
 
-Details, including the task-identity decision and its limits, are in
-`dev-docs/heatmap-and-stats.md`.
+Details in `dev-docs/heatmap-and-stats.md`.
 
 ## Optional integrations
 
@@ -235,9 +225,14 @@ everything in it is optional by construction:
 
 `saveData()` replaces the whole file, so **`SimpleTasksPlugin.persist()` is the
 only place in the codebase allowed to call it**, and it always writes the
-complete document (settings plus the completion log). Anything new that needs
-persisting is added there, never saved on its own — a second writer would
-silently erase whatever the first one had stored.
+complete document. Anything new that needs persisting is added there, never saved
+on its own — a second writer would silently erase whatever the first one had
+stored.
+
+What belongs in there is **the settings, and nothing else**. The file used to
+carry a completion log too, and that state turned out to be the plugin's only
+source of wrong numbers. Derived data is recomputed from the index (`StatsCache`
+memoizes, invalidated by the index's own event); it is never stored.
 
 ## Verification
 
