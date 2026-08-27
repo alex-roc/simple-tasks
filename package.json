@@ -1,6 +1,6 @@
 {
 	"name": "simple-tasks",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"description": "Obsidian plugin for task management on plain markdown checkboxes",
 	"main": "main.js",
 	"type": "module",
