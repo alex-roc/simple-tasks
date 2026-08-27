@@ -662,11 +662,26 @@ body.is-mobile .simple-tasks-bases {
  * Agenda view
  * ------------------------------------------------------------------ */
 
+/*
+ * The agenda is a **UI panel, not a note**, so it is set at the UI scale.
+ *
+ * Without this it inherited `--font-text-size` — the size a note's body is read
+ * at, around 16 px — and a sidebar of a dozen tasks became a wall of text where
+ * every title wrapped onto two or three lines. The toolbar's own labels were
+ * already at the UI scale, which is what made the mismatch visible: the date
+ * above the list was half again as big as the controls beside it.
+ *
+ * Everything inside inherits from here, so the smaller titles need no rule of
+ * their own, and the parts that were already explicit — the summary, the tags,
+ * the source, the folded detail — keep their relative step down.
+ */
 .simple-tasks-agenda {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-4-2);
-	padding: var(--size-4-3);
+	gap: var(--size-4-1);
+	padding: var(--size-4-2);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
 }
 
 .simple-tasks-agenda-toolbar {
@@ -902,10 +917,15 @@ button.simple-tasks-agenda-group-name:focus-visible {
 	font-variant-numeric: tabular-nums;
 }
 
+/*
+ * No gap between rows: each already carries its own vertical padding, and on a
+ * list this dense a gap on top of it reads as if the tasks were unrelated. The
+ * hover and the selection still separate them, and they do it only when there is
+ * something to separate.
+ */
 .simple-tasks-agenda-list {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-2-1);
 }
 
 .simple-tasks-agenda-row {
@@ -981,8 +1001,11 @@ button.simple-tasks-agenda-group-name:focus-visible {
 	align-items: center;
 	justify-content: center;
 	position: relative;
-	width: var(--checkbox-size);
-	height: var(--checkbox-size);
+	/* A step below the vault's own checkbox: it sits next to text at the UI scale
+	   here, not next to a note's body text, and at full size it was the widest
+	   thing on the row. */
+	width: calc(var(--checkbox-size) * 0.85);
+	height: calc(var(--checkbox-size) * 0.85);
 	margin-top: 0.1em;
 	border: 1px solid var(--checkbox-border-color);
 	border-radius: var(--checkbox-radius);
