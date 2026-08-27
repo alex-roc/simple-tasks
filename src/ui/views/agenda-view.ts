@@ -185,13 +185,15 @@ export class AgendaView extends ItemView {
 		contentEl.addClass('simple-tasks-agenda');
 
 		const tasks = this.collect();
-		// Before a single row exists: a painted row that this render is not going to
-		// draw — completed away, filtered out, moved — leaves the selection here.
-		this.rows?.retainSelection(tasks);
+		// A painted row this render does not draw — completed away, filtered out,
+		// moved — leaves the selection. Which rows those are is only known once the
+		// rows exist, so the pruning is at the end; see `TaskRowList.beginRender`.
+		this.rows?.beginRender();
 		this.renderToolbar(contentEl, tasks);
 
 		if (tasks.length === 0) {
 			contentEl.createDiv({ cls: 'simple-tasks-agenda-empty', text: t('agenda.empty') });
+			this.rows?.endRender();
 			return;
 		}
 
@@ -226,6 +228,8 @@ export class AgendaView extends ItemView {
 			if (this.state.grouping === 'note') this.renderTree(list, group.key, group.tasks);
 			else for (const task of group.tasks) this.renderRow(list, task, 0, true);
 		}
+
+		this.rows?.endRender();
 	}
 
 	/**

@@ -45,9 +45,10 @@ were.
 - **Several tasks at once** — **select the lines in the note** the way you select
   any text, then hover one of them: the same popover appears and every action in it
   applies to all of them. It works the same way in the agenda, by dragging across
-  its rows. A task selected with its own ancestor is skipped, the moves run
-  bottom-up so no line shifts under the batch, and one notice says how many
-  arrived.
+  its rows. Include the line the tasks hang off — the project, the moment — and a
+  move carries the whole block instead of leaving an empty title behind. A task
+  selected with its own ancestor is skipped, the moves run bottom-up so no line
+  shifts under the batch, and one notice says how many arrived.
 - **Projects from the links you already write** — a task belongs to the first
   `[[wikilink]]` on its own line, or failing that to the nearest ancestor that
   has one, so `- 🎯 [[census-explorer]]` files everything nested under it with no

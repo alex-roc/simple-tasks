@@ -60,14 +60,19 @@ export interface TaskPopoverOptions {
 	plugin: SimpleTasksPlugin;
 	task: Task;
 	/**
-	 * The tasks this popover acts on, when it was opened over a **selection** of
-	 * several rows. `task` is still the one under the pointer — it is what the
-	 * title, the current status and the tag list are read from — but every write
-	 * applies to all of these.
+	 * The outline items this popover acts on, when it was opened over a
+	 * **selection** of several rows or lines. `task` is still the one under the
+	 * pointer — it is what the title, the current status and the tag list are read
+	 * from — but every write applies to all of these.
 	 *
-	 * Absent, or holding a single task, means the ordinary one-task popover. There
+	 * Absent, or holding a single item, means the ordinary one-task popover. There
 	 * is no second component and no second set of buttons: a bulk action is the
 	 * same action with more targets.
+	 *
+	 * It may contain **checkbox-less items**: the grouping lines a user paints or
+	 * selects along with the tasks under them. Those are not written to, but they
+	 * are moved — see {@link TaskPopover.targets} and
+	 * {@link TaskPopover.moveTargets}.
 	 */
 	selection?: readonly Task[];
 	/**
@@ -114,17 +119,55 @@ export class TaskPopover extends Component {
 	private buttonScope: Component | null = null;
 
 	/**
-	 * Every task a write applies to: the selection when there is one, and the
-	 * hovered task alone otherwise. Read on each use rather than stored expanded,
-	 * so it cannot drift from {@link isMulti}.
+	 * Every item the selection holds, in document order: the selection when there
+	 * is one, and the hovered task alone otherwise. Read on each use rather than
+	 * stored expanded, so it cannot drift from {@link isMulti}.
 	 */
-	private get targets(): readonly Task[] {
+	private get selectedItems(): readonly Task[] {
 		const { selection } = this.options;
 		return selection !== undefined && selection.length > 1 ? selection : [this.task];
 	}
 
+	/**
+	 * Every task a **write to a line** applies to: a status, a priority, a due
+	 * date, a tag.
+	 *
+	 * Checkbox-less items are dropped here. A selection may well contain them —
+	 * that is how a whole block gets moved — but they are not tasks: they have no
+	 * status to set, and stamping a priority or a due date on a line that is
+	 * merely the title of a group writes syntax the user never asked for into
+	 * their note. `cycleTaskStatus` already refuses one; this makes the rule
+	 * apply to every write rather than to the one that happened to check.
+	 */
+	private get targets(): readonly Task[] {
+		const tasks = this.selectedItems.filter((item) => item.isTask);
+		// The hovered line is always a task — no trigger opens this over anything
+		// else — so the fallback is only reached by a selection of nothing but
+		// grouping lines, and it keeps the popover acting on what it is titled after.
+		return tasks.length > 0 ? tasks : [this.task];
+	}
+
+	/**
+	 * Every item a **move** applies to, grouping lines included.
+	 *
+	 * Moving is the one action that is about the outline rather than about a line,
+	 * so it is the one that has to see the whole shape the user selected. Sending
+	 *
+	 * ```markdown
+	 * - Lab
+	 *   - [ ] Preparar el informe
+	 * ```
+	 *
+	 * to tomorrow has to arrive as those two lines, not as an orphan task under
+	 * nothing and an empty heading left behind. `planBulkMove` then recognises
+	 * `Lab` as the ancestor of the task and moves the block exactly once.
+	 */
+	private get moveTargets(): readonly Task[] {
+		return this.selectedItems;
+	}
+
 	private get isMulti(): boolean {
-		return this.targets.length > 1;
+		return this.selectedItems.length > 1;
 	}
 
 	private constructor(container: HTMLElement, options: TaskPopoverOptions, floating: boolean) {
@@ -274,7 +317,7 @@ export class TaskPopover extends Component {
 				? 'simple-tasks-popover-subtitle is-selection'
 				: 'simple-tasks-popover-subtitle',
 			text: this.isMulti
-				? tCount('agenda.selectedCount', this.targets.length)
+				? tCount('agenda.selectedCount', this.selectedItems.length)
 				: `${this.task.path}:${String(this.task.line + 1)}`,
 		});
 
@@ -416,14 +459,14 @@ export class TaskPopover extends Component {
 		this.button(items, { icon: 'calendar', label: t('popover.moveToDate') }, () => {
 			// The targets are read before the modal opens: by the time it answers, this
 			// popover is gone and with it the selection it was acting on.
-			const targets = this.targets;
+			const targets = this.moveTargets;
 			this.close();
 			new DatePickerModal(this.plugin.app, null, (date) => {
 				void this.sendToDate(targets, date);
 			}).open();
 		});
 		this.button(items, { icon: 'file-input', label: t('popover.moveToNote') }, () => {
-			const targets = this.targets;
+			const targets = this.moveTargets;
 			this.close();
 			pickNoteTarget(
 				this.plugin.app,
@@ -566,7 +609,7 @@ export class TaskPopover extends Component {
 	 * there is nothing left under the pointer to point at.
 	 */
 	private moveToDate(date: string): void {
-		const targets = this.targets;
+		const targets = this.moveTargets;
 		this.close();
 		void this.sendToDate(targets, date);
 	}

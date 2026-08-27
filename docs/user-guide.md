@@ -223,11 +223,27 @@ them as selected. `Cmd`/`Ctrl` + click adds or removes one; `Escape`, or a plain
 click, drops the selection. A press without a drag selects nothing, so a plain
 click still means what it always did.
 
+**Include the line the tasks hang off** and the move takes the whole block. A day
+is rarely a flat list:
+
+```markdown
+- Lab TecnoSocial
+	- [ ] Write to Santiago
+	- [ ] Migrate the catalogue
+```
+
+Selecting those three lines — in the note or by painting them in the agenda — and
+sending them to tomorrow moves the block whole, title and subtasks included,
+instead of leaving an empty heading behind and dropping three orphan tasks at the
+destination. Statuses, priorities, due dates and tags still go only to the real
+tasks: a line without a checkbox has no status to set.
+
 Three details worth knowing:
 
 - **Hovering a line that is not in the selection acts on that line alone**, even
   while a selection exists elsewhere. The popover always acts on what you are
-  pointing at.
+  pointing at. The popover never opens over a line without a checkbox, so hover
+  one of the block's tasks rather than its title.
 - **A selected agenda row can be dragged onto a Calendar Plus day**, and it takes
   the whole selection with it. That is also why only selected rows are draggable
   there: a press on an unselected row paints, a press on a selected one drags, and

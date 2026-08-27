@@ -28,8 +28,8 @@ import { HOVER_DELAY_MS, TaskPopover } from './task-popover.ts';
  * comes from `editorInfoField`, the line from the document position, and
  * `index.byFile()` does the rest.
  *
- * Several tasks at once come from the editor's **own text selection** — see
- * {@link tasksInSelection}. Selecting lines and hovering one of them is a gesture
+ * Several lines at once come from the editor's **own text selection** — see
+ * {@link itemsInSelection}. Selecting lines and hovering one of them is a gesture
  * that already exists; nothing here invents a second one.
  */
 
@@ -66,7 +66,7 @@ export function taskHoverExtension(plugin: SimpleTasksPlugin): Extension {
 						// Read now rather than when the tooltip was decided on: `create`
 						// runs when it is really about to be shown, which is the moment
 						// whose selection the user is looking at.
-						selection: tasksInSelection(plugin, view, task),
+						selection: itemsInSelection(plugin, view, task),
 					});
 					return {
 						dom,
@@ -90,13 +90,30 @@ export function taskHoverExtension(plugin: SimpleTasksPlugin): Extension {
 }
 
 /**
- * The tasks the **editor's own text selection** covers, when it covers the hovered
- * line too. `undefined` for anything else, which is the ordinary one-task popover.
+ * The list items the **editor's own text selection** covers, when it covers the
+ * hovered line too. `undefined` for anything else, which is the ordinary
+ * one-task popover.
  *
  * This is the whole gesture for acting on several tasks in a note: select the lines
  * the way you would select any text — drag across them, `Shift`+arrow, whatever —
  * and hover one of them. Nothing new to learn and nothing of ours to discover; the
  * popover simply says how many it is about to write to.
+ *
+ * **Checkbox-less items count too**, which is the whole reason this is not a list
+ * of tasks. A day's work is rarely a flat list:
+ *
+ * ```markdown
+ * - Lab
+ *   - [ ] Preparar el informe
+ *   - [ ] Revisar el presupuesto
+ * ```
+ *
+ * Selecting those three lines and sending them to tomorrow used to move the two
+ * tasks and leave `Lab` behind — the structure the user wrote arrived at the
+ * destination flattened, and the source note kept an empty heading. Including the
+ * grouping line lets `planBulkMove` recognise it as the root of the others and
+ * move the block once, whole. What the popover *writes* to a line — a status, a
+ * priority, a tag — still only goes to the real tasks; see `TaskPopover.targets`.
  *
  * Every range of a multi-cursor selection counts, so `Cmd`+dragging three separate
  * task lines works as well as one continuous sweep. A range that **ends** at the
@@ -104,7 +121,7 @@ export function taskHoverExtension(plugin: SimpleTasksPlugin): Extension {
  * of the next line is how a selection normally ends, and it must not quietly
  * include a task the user did not touch.
  */
-function tasksInSelection(
+function itemsInSelection(
 	plugin: SimpleTasksPlugin,
 	view: EditorView,
 	hovered: Task
@@ -123,9 +140,9 @@ function tasksInSelection(
 	}
 	if (!lines.has(hovered.line)) return undefined;
 	const items = plugin.index.fileEntry(hovered.path)?.items ?? [];
-	const tasks = items.filter((item) => item.isTask && lines.has(item.line));
-	// One task is not a selection: it is the same popover it would have been.
-	return tasks.length > 1 ? tasks : undefined;
+	const selected = items.filter((item) => lines.has(item.line));
+	// One line is not a selection: it is the same popover it would have been.
+	return selected.length > 1 ? selected : undefined;
 }
 
 /** The indexed task on the line under `pos`, or `null` when there is none. */

@@ -33,9 +33,10 @@ import { HOVER_DELAY_MS, TaskPopover } from '../popover/task-popover.ts';
  * `renderRow` records the row element in a `WeakMap`; the delegated handlers
  * look the event's row up in it. Nothing has to be cleared between renders: an
  * entry dies with the element that keys it. A row that is drawn only as outline
- * context (`matched: false`) is recorded as such, which is what keeps it inert
- * — no drag, no double click, no popover — while still letting its checkbox
- * work, exactly as it did before.
+ * context (`matched: false`) is recorded as such, which is what keeps it out of
+ * the things that act on *a task* — no drag, no double click, no popover — while
+ * still letting its checkbox work, exactly as it did before. It can, however, be
+ * **selected**: see the note on painting below.
  *
  * The checkbox is a real `<button>`, so Enter and Space fire its `click`
  * natively and there is deliberately **no keyboard handler on it**: with both a
@@ -80,15 +81,21 @@ import { HOVER_DELAY_MS, TaskPopover } from '../popover/task-popover.ts';
  *   turning into a drag halfway through.
  * - **`Cmd`/`Ctrl` + click** toggles a single row, for adding the odd one out
  *   without repainting.
+ * - **A grouping row can be painted too**, even though it is drawn as outline
+ *   context and opens no popover of its own. A day is rarely a flat list — tasks
+ *   hang off a line that names the project or the moment — and painting across
+ *   the block without its title moved the tasks and left the title behind, empty.
+ *   Including it is what lets the move carry the structure the user wrote; the
+ *   popover still writes statuses, priorities and tags to the real tasks only.
  *
  * Desktop only, deliberately. There is no press-and-drag on a phone that does not
  * collide with scrolling, and the popover there is one task at a time.
  *
- * The selection holds **ids**, and it is pruned to what the view is about to draw
- * on every render ({@link TaskRowList.retainSelection}). A task that has been
- * completed away, filtered out or moved elsewhere therefore drops out of it by
- * itself: acting on a row that is no longer on screen is exactly the surprise
- * this is here to avoid.
+ * The selection holds **ids**, and it is pruned to what the view actually drew on
+ * every render ({@link TaskRowList.beginRender} and
+ * {@link TaskRowList.endRender}). A task that has been completed away, filtered
+ * out or moved elsewhere therefore drops out of it by itself: acting on a row
+ * that is no longer on screen is exactly the surprise this is here to avoid.
  */
 
 export interface TaskRowListOptions {
@@ -130,8 +137,11 @@ export class TaskRowList {
 	private pending: { row: HTMLElement; timer: number } | null = null;
 	private open: { row: HTMLElement; popover: TaskPopover } | null = null;
 
-	/** Selected tasks by id. */
+	/** Selected items by id. May hold grouping lines as well as tasks. */
 	private readonly selected = new Map<string, Task>();
+
+	/** What the render in progress has drawn so far, by id. */
+	private readonly drawn = new Map<string, Task>();
 
 	/**
 	 * The press in progress that may become a paint: the row it started on, and
@@ -161,7 +171,12 @@ export class TaskRowList {
 		const row = container.createDiv({
 			cls: matched ? this.rowClass : `${this.rowClass} is-context`,
 		});
-		const selected = matched && this.selected.has(task.id);
+		// Every row that is drawn, matched or not, so {@link endRender} can drop from
+		// the selection whatever this render did not put on screen. Only while there
+		// is a selection to prune: a view that never selects — the Bases one — would
+		// otherwise accumulate an entry per task for as long as it stayed open.
+		if (this.selected.size > 0) this.drawn.set(task.id, task);
+		const selected = this.selected.has(task.id);
 		if (selected) {
 			row.addClass('is-selected');
 			row.setAttribute('aria-selected', 'true');
@@ -379,17 +394,33 @@ export class TaskRowList {
 	}
 
 	/**
-	 * Drops from the selection anything the view is no longer about to draw, and
-	 * refreshes what is left to the freshly parsed task. Called at the top of a
-	 * render, before any row exists.
+	 * Opens a render. Everything {@link renderRow} draws from here on is recorded,
+	 * and {@link endRender} prunes the selection to it. **A view that passes
+	 * `selectable` must call both**, around every render; one that never selects
+	 * needs neither.
+	 *
+	 * The pruning is at the *end* rather than at the start because a selection can
+	 * hold rows the view does not select for: the grouping lines painted along with
+	 * their tasks are drawn as outline context, so a list of what the view matched
+	 * would throw exactly those away. What was drawn is the honest answer, and it
+	 * is known only once the drawing is done.
 	 */
-	retainSelection(visible: readonly Task[]): void {
+	beginRender(): void {
+		this.drawn.clear();
+	}
+
+	/**
+	 * Closes a render: drops from the selection anything this render did not draw
+	 * — completed away, filtered out, moved elsewhere — and refreshes what is left
+	 * to the freshly parsed item. Acting on a row that is no longer on screen is
+	 * exactly the surprise the selection is pruned to avoid.
+	 */
+	endRender(): void {
 		if (this.selected.size === 0) return;
-		const byId = new Map(visible.map((task) => [task.id, task]));
-		for (const id of [...this.selected.keys()]) {
-			const fresh = byId.get(id);
+		for (const [id, task] of [...this.selected]) {
+			const fresh = this.drawn.get(id);
 			if (fresh === undefined) this.selected.delete(id);
-			else this.selected.set(id, fresh);
+			else if (fresh !== task) this.selected.set(id, fresh);
 		}
 	}
 
@@ -414,7 +445,7 @@ export class TaskRowList {
 			// starts the native drag that carries the selection to the calendar.
 			if (row !== null && entry !== undefined && this.selected.has(entry.task.id)) return;
 			this.clearSelection();
-			if (row === null || entry === undefined || !entry.matched) return;
+			if (row === null || entry === undefined) return;
 			// Nothing is selected yet — a click must select nothing. What is armed here
 			// is the *possibility* of a paint, which the move onto a second row takes.
 			this.paint = { anchor: row, spread: false };
@@ -434,7 +465,7 @@ export class TaskRowList {
 			}
 			const row = this.closest(event.target, this.rowClass);
 			const entry = row === null ? undefined : this.rows.get(row);
-			if (row === null || entry === undefined || !entry.matched) return;
+			if (row === null || entry === undefined) return;
 			if (row === paint.anchor && !paint.spread) return;
 			if (!paint.spread) {
 				// The second row is what turns the press into a paint, so the row it
@@ -462,7 +493,7 @@ export class TaskRowList {
 		if (!event.metaKey && !event.ctrlKey) return;
 		const row = this.closest(event.target, this.rowClass);
 		const entry = row === null ? undefined : this.rows.get(row);
-		if (row === null || entry === undefined || !entry.matched) return;
+		if (row === null || entry === undefined) return;
 		event.preventDefault();
 		event.stopPropagation();
 		this.cancelPending();
@@ -474,7 +505,7 @@ export class TaskRowList {
 	/** Adds one row to the selection, if it is not in it already. */
 	private selectRow(row: HTMLElement): void {
 		const entry = this.rows.get(row);
-		if (entry === undefined || !entry.matched) return;
+		if (entry === undefined) return;
 		if (this.selected.has(entry.task.id)) return;
 		this.selected.set(entry.task.id, entry.task);
 		this.mark(row, true);

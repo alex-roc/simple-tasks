@@ -155,6 +155,13 @@ containing a `*` sublist, and the cache reports both), and three other edge case
 bite too. They are all documented in `dev-docs/domain-and-index.md` — read that
 before touching `index/indexer.ts`.
 
+**A selection may hold grouping nodes, and a move must respect that.** Both
+selection gestures — the editor's text selection and the agenda's painting —
+include checkbox-less items, so a block selected with its title moves as a block:
+`planBulkMove()` sees the title as the ancestor of the tasks under it and moves it
+once. Writes to a line (status, priority, due date, tags) still go to real tasks
+only; the split is `targets` vs `moveTargets` in `ui/popover/task-popover.ts`.
+
 When moving a task, the whole subtree moves with it, reindented to the
 destination. This is the operation most likely to corrupt notes: verify it
 against the git-tracked test vault by inspecting the actual diff. The decisions
@@ -293,6 +300,12 @@ obs eval code="app.plugins.plugins['simple-tasks'].index.stats()"
 `styles.css` uses **only** Obsidian CSS variables — no literal colors, ever.
 Verify in both light and dark themes. Animations must respect
 `@media (prefers-reduced-motion: reduce)`.
+
+**The plugin's views are set at the UI scale**, not at the note's. `.simple-tasks-agenda`
+declares `font-size: var(--font-ui-small)` and everything inside inherits it; without
+it a view inherits `--font-text-size` — the size a note's *body* is read at — and a
+sidebar list becomes a wall of text whose every title wraps three times, next to a
+toolbar that was already at the UI scale. Any new view starts the same way.
 
 **Touch targets go through `--st-touch-target`**, declared on `.simple-tasks-agenda`
 and `.simple-tasks-bases` as `0px` and raised to 44px by *both* `body.is-mobile` and
